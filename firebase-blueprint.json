@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access control and compensation details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager", "representative"] },
+        "title": { "type": "string" },
+        "managerId": { "type": "string" },
+        "managerName": { "type": "string" },
+        "dateOfBirth": { "type": "string" },
+        "shirtSize": { "type": "string" },
+        "phone": { "type": "string" },
+        "directDeposit": { "type": "object" },
+        "travelProfile": { "type": "object" },
+        "payRates": { "type": "object" },
+        "stats": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role", "displayName"]
+    },
+    "SaleOrder": {
+      "title": "SaleOrder",
+      "description": "Fiber customer order and installation record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "repId": { "type": "string" },
+        "repName": { "type": "string" },
+        "repRole": { "type": "string" },
+        "uplineManagerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "ispProgram": { "type": "string" },
+        "speedTier": { "type": "string" },
+        "status": { "type": "string", "enum": ["installed", "scheduled", "cancelled", "chargeback"] },
+        "payout": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "orderNumber", "repId", "customerName", "status", "ispProgram"]
+    },
+    "BlitzEvent": {
+      "title": "BlitzEvent",
+      "description": "State sales blitz campaign and turf deployment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "state": { "type": "string" },
+        "city": { "type": "string" },
+        "ispPartner": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "upcoming", "completed"] },
+        "targetGoal": { "type": "number" },
+        "maxSpots": { "type": "number" },
+        "bookedCount": { "type": "number" },
+        "bookedUserIds": { "type": "array" }
+      },
+      "required": ["id", "title", "state", "city", "status"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Internal training course and coursework modules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "badgeTitle": { "type": "string" },
+        "level": { "type": "string" },
+        "lessons": { "type": "array" },
+        "published": { "type": "boolean" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "badgeTitle"]
+    },
+    "InternalMessage": {
+      "title": "InternalMessage",
+      "description": "Direct message and push broadcast notification for blitz updates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "recipientType": { "type": "string", "enum": ["direct", "blitz_broadcast", "company_broadcast"] },
+        "recipientId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "isPushAlert": { "type": "boolean" },
+        "priority": { "type": "string", "enum": ["normal", "urgent", "blitz_dispatch"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "senderId", "title", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles with role permissions and pay rate tables"
+    },
+    "/sales/{saleId}": {
+      "schema": "SaleOrder",
+      "description": "Sales orders submitted by representatives"
+    },
+    "/blitzes/{blitzId}": {
+      "schema": "BlitzEvent",
+      "description": "State blitz events and booking manifests"
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Internal coursework and curriculum"
+    },
+    "/messages/{messageId}": {
+      "schema": "InternalMessage",
+      "description": "Direct messages and push broadcast alerts"
+    }
+  }
+}

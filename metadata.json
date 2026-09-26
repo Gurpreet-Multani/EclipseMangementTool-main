@@ -1,0 +1,6 @@
+{
+  "name": "Eclipse Dashboard Pro - Enterprise Management Platform",
+  "description": "Enterprise iOS and Web platform for fiber sales blitzes: sales performance metrics, state blitz booking, internal training academy, rep badges, and direct deposit profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

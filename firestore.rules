@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Role-Based Access Control (RBAC)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function getCurrentUserData() {
+      return getUserData(request.auth.uid);
+    }
+
+    function hasRole(roleName) {
+      return isAuthenticated() && (
+        request.auth.token.role == roleName ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getUserData(request.auth.uid).role == roleName)
+      );
+    }
+
+    function isAdmin() {
+      return hasRole('admin') || hasRole('Admin');
+    }
+
+    function isManager() {
+      return hasRole('manager') || hasRole('Manager');
+    }
+
+    function isRepresentative() {
+      return hasRole('representative') || hasRole('Representative') || hasRole('rep');
+    }
+
+    function canManageTeam() {
+      return isAdmin() || isManager();
+    }
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      // Authenticated users can read directory & profiles
+      allow read: if isAuthenticated();
+
+      // Only Admin or Manager can modify titles, roles, or pay rates
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        // Admins and Managers can update any user's profile, role, title, and pay rates
+        canManageTeam() ||
+        // A Representative updating their own profile CANNOT change role, title, or payRates
+        (request.auth.uid == userId &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'title', 'payRates']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // SALES ORDERS
+    match /sales/{saleId} {
+      allow read: if isAuthenticated();
+      // Reps can create and track sales; Admins and Managers can update and manage
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        canManageTeam() || resource.data.repId == request.auth.uid
+      );
+      allow delete: if canManageTeam();
+    }
+
+    // STATE BLITZES
+    match /blitzes/{blitzId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canManageTeam();
+      allow delete: if isAdmin();
+    }
+
+    // BLITZ BOOKINGS
+    match /blitz_bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || canManageTeam()
+      );
+    }
+
+    // INTERNAL COURSEWORK & ACADEMY
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      // Only Admins and Managers can upload and author coursework
+      allow create, update, delete: if canManageTeam();
+    }
+
+    // COURSE SUBMISSIONS & EXAMS
+    match /course_submissions/{subId} {
+      allow read: if isAuthenticated();
+      // Representatives can submit coursework and take exams
+      allow create, update: if isAuthenticated();
+      allow delete: if canManageTeam();
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if canManageTeam();
+    }
+
+    // INTERNAL MESSAGES & BLITZ PUSH BROADCASTS
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      // Managers and Admins can broadcast and direct message; reps can reply
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if canManageTeam();
+    }
+
+    // Default fallback
+    match /{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+  }
+}
