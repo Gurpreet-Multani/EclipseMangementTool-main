@@ -1,13 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Check, X, Lock, Users, DollarSign, GraduationCap, MapPin, Zap } from 'lucide-react';
+import { UserRole } from '../types';
 
 interface RbacMatrixModalProps {
   onClose: () => void;
 }
 
 export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => {
-  const { currentUser, loginAs, users } = useAuth();
+  const { currentUser, loginAs, users, isAdmin, createUserByAdmin } = useAuth();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    role: 'Representative' as UserRole,
+    title: '',
+    managerId: 'user_mgr_marcus',
+  });
+  const [createStatus, setCreateStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateStatus(null);
+
+    const result = await createUserByAdmin(formData);
+    if (!result.success) {
+      setCreateStatus({ type: 'error', message: result.error || 'Failed to create user.' });
+      return;
+    }
+
+    setCreateStatus({ type: 'success', message: 'User created successfully.' });
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      role: 'Representative',
+      title: '',
+      managerId: 'user_mgr_marcus',
+    });
+  };
 
   const matrix = [
     {
@@ -132,60 +165,155 @@ export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => 
         </div>
 
         {/* Quick Role Switcher for Testing */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Test Switch Personas by Role:
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {/* Admin Persona */}
-            <button
-              onClick={() => loginAs('user_owner_gurpreet')}
-              className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 text-left transition-all group"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-white group-hover:text-amber-300">
-                  Gurpreet Multani
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-400/20 text-amber-400">
-                  Admin
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400">Full system control, pay rates, all users</p>
-            </button>
+        {isAdmin && (
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Test Switch Personas by Role:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {/* Admin Persona */}
+              <button
+                onClick={() => loginAs('user_owner_gurpreet')}
+                className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-white group-hover:text-amber-300">
+                    Gurpreet Multani
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-400/20 text-amber-400">
+                    Admin
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">Full system control, pay rates, all users</p>
+              </button>
 
-            {/* Manager Persona */}
-            <button
-              onClick={() => loginAs('user_mgr_marcus')}
-              className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-purple-500/30 text-left transition-all group"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-white group-hover:text-emerald-300">
-                  Marcus Vance
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-400/20 text-emerald-400">
-                  Manager
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400">Upload coursework, team & pay management</p>
-            </button>
+              {/* Manager Persona */}
+              <button
+                onClick={() => loginAs('user_mgr_marcus')}
+                className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-purple-500/30 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-white group-hover:text-emerald-300">
+                    Marcus Vance
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-400/20 text-emerald-400">
+                    Manager
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">Upload coursework, team & pay management</p>
+              </button>
 
-            {/* Representative Persona */}
-            <button
-              onClick={() => loginAs('user_rep_jordan')}
-              className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-emerald-500/30 text-left transition-all group"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-white group-hover:text-emerald-300">
-                  Jordan Hayes
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-400/20 text-emerald-400">
-                  Representative
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400">Sales tracking, training, profile & badge</p>
-            </button>
+              {/* Representative Persona */}
+              <button
+                onClick={() => loginAs('user_rep_jordan')}
+                className="p-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-emerald-500/30 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-white group-hover:text-emerald-300">
+                    Jordan Hayes
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-400/20 text-emerald-400">
+                    Representative
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">Sales tracking, training, profile & badge</p>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Admin User Provisioning */}
+        {isAdmin && (
+          <div className="border border-slate-800 rounded-2xl p-4 bg-slate-950/40 space-y-3">
+            <div>
+              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Admin Only</p>
+              <h3 className="text-sm font-bold text-white">Create User In RBAC Directory</h3>
+            </div>
+
+            {createStatus && (
+              <div
+                className={`text-xs rounded-xl px-3 py-2 border ${
+                  createStatus.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                }`}
+              >
+                {createStatus.message}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                required
+                placeholder="First name"
+                value={formData.firstName}
+                onChange={(e) => setFormData((prev) => ({ ...prev, firstName: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+              <input
+                type="text"
+                required
+                placeholder="Last name"
+                value={formData.lastName}
+                onChange={(e) => setFormData((prev) => ({ ...prev, lastName: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+              <input
+                type="email"
+                required
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 sm:col-span-2"
+              />
+              <input
+                type="password"
+                required
+                placeholder="Temporary password"
+                value={formData.password}
+                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value as UserRole }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Representative">Representative</option>
+                <option value="Manager">Manager</option>
+                <option value="Admin">Admin</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Title"
+                value={formData.title}
+                onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+              <select
+                value={formData.managerId}
+                onChange={(e) => setFormData((prev) => ({ ...prev, managerId: e.target.value }))}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              >
+                {users
+                  .filter((u) => ['manager', 'admin', 'owner'].includes(u.role.toLowerCase()))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.displayName}
+                    </option>
+                  ))}
+              </select>
+
+              <button
+                type="submit"
+                className="sm:col-span-2 mt-1 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors"
+              >
+                Create User
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Permissions Comparison Table */}
         <div className="border border-slate-800 rounded-2xl overflow-hidden">

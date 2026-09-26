@@ -310,49 +310,51 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                <div className="p-2 border-b border-slate-800">
-                  <p className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Switch Active Persona (Test RBAC System)
-                  </p>
-                  <div className="space-y-1">
-                    {users.map((u) => {
-                      const isSelected = u.id === currentUser?.id;
-                      const uRoleLower = u.role?.toLowerCase();
-                      const uIsAdmin = uRoleLower === 'admin' || uRoleLower === 'owner';
-                      const uIsManager = uRoleLower === 'manager';
+                {isAdmin && (
+                  <div className="p-2 border-b border-slate-800">
+                    <p className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Switch Active Persona (Admin Testing)
+                    </p>
+                    <div className="space-y-1">
+                      {users.map((u) => {
+                        const isSelected = u.id === currentUser?.id;
+                        const uRoleLower = u.role?.toLowerCase();
+                        const uIsAdmin = uRoleLower === 'admin' || uRoleLower === 'owner';
+                        const uIsManager = uRoleLower === 'manager';
 
-                      return (
-                        <button
-                          key={u.id}
-                          onClick={() => {
-                            loginAs(u.id);
-                            setShowUserMenu(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors text-xs ${
-                            isSelected
-                              ? 'bg-emerald-500/15 text-emerald-300 font-semibold border border-emerald-500/30'
-                              : 'text-slate-300 hover:bg-slate-800/60'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                uIsAdmin
-                                  ? 'bg-amber-400'
-                                  : uIsManager
-                                  ? 'bg-emerald-400'
-                                  : 'bg-cyan-400'
-                              }`}
-                            />
-                            <span>{u.displayName}</span>
-                            <span className="text-[10px] text-slate-500 capitalize">({u.role})</span>
-                          </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              loginAs(u.id);
+                              setShowUserMenu(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors text-xs ${
+                              isSelected
+                                ? 'bg-emerald-500/15 text-emerald-300 font-semibold border border-emerald-500/30'
+                                : 'text-slate-300 hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  uIsAdmin
+                                    ? 'bg-amber-400'
+                                    : uIsManager
+                                    ? 'bg-emerald-400'
+                                    : 'bg-cyan-400'
+                                }`}
+                              />
+                              <span>{u.displayName}</span>
+                              <span className="text-[10px] text-slate-500 capitalize">({u.role})</span>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="p-1.5 bg-slate-950/40 space-y-0.5">
                   <button

@@ -13,6 +13,15 @@ interface AuthContextType {
   loginAs: (userId: string) => Promise<void>;
   loginWithCredentials: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   registerUser: (data: Partial<UserProfile> & { email: string; password?: string }) => Promise<{ success: boolean; error?: string }>;
+  createUserByAdmin: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    title?: string;
+    managerId?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUserProfile: (targetUserId: string, updates: Partial<UserProfile>) => Promise<boolean>;
   updateRepPayRates: (targetRepId: string, payRates: Record<string, number>) => Promise<boolean>;
@@ -42,6 +51,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_USER_KEY = 'eclipse_current_user_id';
 const LOCAL_STORAGE_USERS_KEY = 'eclipse_users_cache';
 const LOCAL_STORAGE_ROLES_KEY = 'eclipse_custom_roles';
+const LOCAL_STORAGE_CREDENTIALS_KEY = 'eclipse_user_credentials';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<UserProfile[]>(() => {
@@ -64,18 +74,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
+  const [credentialMap, setCredentialMap] = useState<Record<string, string>>(() => {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.warn('Failed to parse cached credentials', e);
+    }
+
+    const defaults: Record<string, string> = {};
+    INITIAL_USERS.forEach((u) => {
+      defaults[u.email.toLowerCase()] = 'eclipse123';
+    });
+    return defaults;
+  });
+
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const savedId = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
       if (savedId) {
-        const found = INITIAL_USERS.find(u => u.id === savedId);
+        const cachedUsersRaw = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+        const sourceUsers: UserProfile[] = cachedUsersRaw ? JSON.parse(cachedUsersRaw) : INITIAL_USERS;
+        const found = sourceUsers.find(u => u.id === savedId);
         if (found) return found;
       }
     } catch (e) {
       console.warn('Failed to read saved user', e);
     }
-    // Default to Gurpreet (Admin) or Jordan (Representative)
-    return INITIAL_USERS[0];
+    return null;
   });
 
   // Sync users with Firestore
@@ -103,11 +129,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
       if (currentUser) {
         localStorage.setItem(LOCAL_STORAGE_USER_KEY, currentUser.id);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
       }
     } catch (e) {
       console.error(e);
     }
   }, [users, currentUser]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_CREDENTIALS_KEY, JSON.stringify(credentialMap));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [credentialMap]);
 
   const loginAs = async (userId: string) => {
     const user = users.find(u => u.id === userId);
@@ -117,32 +153,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithCredentials = async (email: string, _pass: string) => {
+  const loginWithCredentials = async (email: string, pass: string) => {
     const normalized = email.trim().toLowerCase();
-    const user = users.find(u => u.email.toLowerCase() === normalized);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, user.id);
-      return { success: true };
+    const user = users.find((u) => u.email.toLowerCase() === normalized);
+    if (!user) {
+      return { success: false, error: 'No user found with that email. Ask an admin to create your account.' };
     }
-    // If not found in seed, create a standard representative profile
-    const newId = `user_${Date.now()}`;
+
+    const savedPassword = credentialMap[normalized] || 'eclipse123';
+    if (pass !== savedPassword) {
+      return { success: false, error: 'Invalid password.' };
+    }
+
+    setCurrentUser(user);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, user.id);
+    return { success: true };
+  };
+
+  const registerUser = async () => {
+    return {
+      success: false,
+      error: 'Self-registration is disabled. Ask an admin to create your user in RBAC.',
+    };
+  };
+
+  const createUserByAdmin = async (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    title?: string;
+    managerId?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    if (!isAdmin) {
+      return { success: false, error: 'Only admins can create users.' };
+    }
+
+    const normalized = data.email.trim().toLowerCase();
+    if (!normalized || !data.password.trim()) {
+      return { success: false, error: 'Email and password are required.' };
+    }
+
+    const duplicate = users.some((u) => u.email.toLowerCase() === normalized);
+    if (duplicate) {
+      return { success: false, error: 'A user with that email already exists.' };
+    }
+
+    const nowIso = new Date().toISOString();
+    const assignedManager = users.find((u) => u.id === data.managerId);
+
     const newUser: UserProfile = {
-      id: newId,
+      id: `user_${Date.now()}`,
       email: normalized,
-      firstName: normalized.split('@')[0] || 'Field',
-      lastName: 'Agent',
-      displayName: normalized.split('@')[0] || 'Field Agent',
-      role: 'Representative',
-      title: 'Fiber Field Specialist',
-      managerId: 'user_mgr_marcus',
-      managerName: 'Marcus Vance',
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      displayName: `${data.firstName} ${data.lastName}`.trim(),
+      role: data.role,
+      title: data.title?.trim() || 'Fiber Field Specialist',
+      managerId: data.managerId || '',
+      managerName: assignedManager?.displayName || 'Direct to Founder',
       dateOfBirth: '1999-01-01',
       shirtSize: 'L',
-      phone: '(555) 000-1234',
+      phone: '(555) 000-0000',
       emergencyContact: {
         name: 'Primary Contact',
-        phone: '(555) 000-5678',
+        phone: '(555) 000-0000',
         relationship: 'Family',
       },
       directDeposit: {
@@ -180,27 +256,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cancelRate: 0,
         totalCommission: 0,
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
+    setUsers((prev) => [newUser, ...prev]);
+    setCredentialMap((prev) => ({ ...prev, [normalized]: data.password }));
+
     try {
-      await setDoc(doc(db, 'users', newId), newUser);
+      await setDoc(doc(db, 'users', newUser.id), newUser);
     } catch (e) {
-      console.warn('Firestore set user offline fallback', e);
+      console.warn('Firestore create user offline fallback', e);
     }
 
-    setUsers(prev => [newUser, ...prev]);
-    setCurrentUser(newUser);
     return { success: true };
   };
 
-  const registerUser = async (data: Partial<UserProfile> & { email: string }) => {
-    return loginWithCredentials(data.email, 'password123');
-  };
-
   const logout = () => {
-    setCurrentUser(INITIAL_USERS[2]); // Default representative Jordan Hayes
+    setCurrentUser(null);
+    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
   };
 
   // RBAC Role normalization
@@ -363,6 +437,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAs,
         loginWithCredentials,
         registerUser,
+        createUserByAdmin,
         logout,
         updateUserProfile,
         updateRepPayRates,
