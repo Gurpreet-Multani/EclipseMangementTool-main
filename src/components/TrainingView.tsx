@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Course, CourseLesson, CourseAssignment, QuizQuestion } from '../types';
+import { Course, CourseLesson, CourseAssignment, QuizQuestion, CourseSubmission } from '../types';
 import { CourseAssignmentModal } from './CourseAssignmentModal';
 import {
   GraduationCap,
@@ -652,7 +652,7 @@ export const TrainingView: React.FC = () => {
                     </div>
 
                     <div className="space-y-2 pt-1">
-                      {q.options.map((opt, optIndex) => {
+                      {q.options?.map((opt, optIndex) => {
                         const isSelected = quizAnswers[q.id] === optIndex;
                         return (
                           <button

@@ -938,6 +938,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       assignedUserIds,
       dueDate,
       priority,
+      isRequired: true,
       description,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

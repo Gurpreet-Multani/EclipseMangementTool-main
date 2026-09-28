@@ -932,6 +932,7 @@ Once the customer understands the price lock and no-contract advantage:
     quiz: [
       {
         id: 'q1',
+        questionType: 'multiple_choice',
         question: 'What is the main technical difference between Fiber and traditional Cable (DOCSIS)?',
         options: [
           'Fiber uses copper wires with higher electrical voltage',
@@ -944,6 +945,7 @@ Once the customer understands the price lock and no-contract advantage:
       },
       {
         id: 'q2',
+        questionType: 'multiple_choice',
         question: 'When knocking on a residential door during a blitz, what is the best physical stance?',
         options: [
           'Lean on the door frame to look comfortable',
@@ -956,6 +958,7 @@ Once the customer understands the price lock and no-contract advantage:
       },
       {
         id: 'q3',
+        questionType: 'multiple_choice',
         question: 'What is an "Alternate of Choice" close when scheduling an installation?',
         options: [
           'Asking "Do you want internet or not?"',
@@ -1025,6 +1028,7 @@ Cancels don't happen because customers don't want fiber; cancels happen because 
     quiz: [
       {
         id: 'q2_1',
+        questionType: 'multiple_choice',
         question: 'Why is an adult 18+ required to be present during the technician visit?',
         options: [
           'Because only adults can use fiber optics',
@@ -1037,6 +1041,7 @@ Cancels don't happen because customers don't want fiber; cancels happen because 
       },
       {
         id: 'q2_2',
+        questionType: 'multiple_choice',
         question: 'What is the number one cause of install cancellations?',
         options: [
           'Slow fiber speeds',

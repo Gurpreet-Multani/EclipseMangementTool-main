@@ -22,7 +22,7 @@ interface CourseAssignmentModalProps {
   onClose: () => void;
   courses: Course[];
   allUsers: UserProfile[];
-  onAssignCourse: (courseId: string, assignedRoles: string[], assignedUserIds: string[], dueDate?: string, priority?: 'low' | 'medium' | 'high' | 'critical', description?: string) => Promise<void>;
+  onAssignCourse: (courseId: string, assignedRoles: string[], assignedUserIds: string[], dueDate?: string, priority?: 'low' | 'medium' | 'high' | 'critical', description?: string) => Promise<boolean | void>;
 }
 
 export const CourseAssignmentModal: React.FC<CourseAssignmentModalProps> = ({

@@ -276,6 +276,8 @@ export interface CourseSubmission {
   assignmentGrade?: number;
   assignmentFeedback?: string;
   completedAt?: string;
+  submittedAt?: string;
+  quizAnswers?: Record<string, string | number>;
   status: 'in_progress' | 'submitted' | 'pending_review' | 'graded' | 'completed' | 'rejected';
   // Assignment tracking
   assignmentId?: string; // Reference to CourseAssignmentRecord
