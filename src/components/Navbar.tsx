@@ -15,7 +15,8 @@ import {
   KeyRound,
   Lock,
   MessageSquare,
-  Clock
+  Clock,
+  UserCheck,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -26,6 +27,7 @@ interface NavbarProps {
   onOpenMessaging: () => void;
   onOpenPendingReviews: () => void;
   onOpenCompletedCourses: () => void;
+  onOpenApprovals: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,8 +38,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMessaging,
   onOpenPendingReviews,
   onOpenCompletedCourses,
+  onOpenApprovals,
 }) => {
-  const { currentUser, users, loginAs, logout, isAdmin, isManager, isRepresentative } = useAuth();
+  const { currentUser, users, loginAs, logout, isAdmin, isManager, isRepresentative, pendingApprovalsCount } = useAuth();
   const { notifications, messages, markNotificationRead, clearAllNotifications, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -158,6 +161,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label="Completed Coursework"
             >
               <CheckCircle className="w-4 h-4 text-emerald-400" />
+            </button>
+          )}
+
+          {/* Account Approvals Button for Admin */}
+          {isAdmin && (
+            <button
+              onClick={onOpenApprovals}
+              className="relative p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-colors"
+              title="Manage Account Approvals & Google Whitelist"
+              aria-label="Account Approvals"
+            >
+              <UserCheck className="w-4 h-4 text-amber-400" />
+              {pendingApprovalsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
+                  {pendingApprovalsCount}
+                </span>
+              )}
             </button>
           )}
 
@@ -357,6 +377,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
 
                 <div className="p-1.5 bg-slate-950/40 space-y-0.5">
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        onOpenApprovals();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Manage Account Approvals</span>
+                      </div>
+                      {pendingApprovalsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                          {pendingApprovalsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       onOpenRbacModal();

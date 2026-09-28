@@ -21,6 +21,10 @@
         "travelProfile": { "type": "object" },
         "payRates": { "type": "object" },
         "stats": { "type": "object" },
+        "approvalStatus": { "type": "string", "enum": ["approved", "pending", "rejected"] },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "requestedAt": { "type": "string" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },

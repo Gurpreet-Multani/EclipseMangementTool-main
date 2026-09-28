@@ -25,6 +25,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { US_STATES } from '../lib/states';
 
 interface BlitzBookingViewProps {
   onOpenMessagingForBlitz?: (blitzId: string) => void;
@@ -237,20 +238,22 @@ export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessag
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {/* State Pills */}
-              {['all', 'TX', 'FL', 'NC', 'AZ', 'OH', 'GA'].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setSelectedState(st)}
-                  className={`px-2.5 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold uppercase transition-all ${
-                    selectedState === st
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                  }`}
+              {/* All 52 States Filter Dropdown */}
+              <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-800">
+                <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">State:</span>
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  className="bg-transparent text-emerald-400 font-bold text-[10px] sm:text-xs focus:outline-none cursor-pointer"
                 >
-                  {st === 'all' ? 'All States' : st}
-                </button>
-              ))}
+                  <option value="all" className="bg-slate-900 text-white">All 52 States & Territories</option>
+                  {US_STATES.map((st) => (
+                    <option key={st.code} value={st.code} className="bg-slate-900 text-white">
+                      {st.code} - {st.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <span className="text-slate-700 hidden sm:inline">|</span>
 
@@ -931,9 +934,9 @@ export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessag
                     onChange={(e) => setNewBlitzState(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
                   >
-                    {['TX', 'FL', 'NC', 'AZ', 'OH', 'GA', 'TN', 'SC', 'IN', 'NV'].map((st) => (
-                      <option key={st} value={st}>
-                        {st}
+                    {US_STATES.map((st) => (
+                      <option key={st.code} value={st.code}>
+                        {st.code} - {st.name}
                       </option>
                     ))}
                   </select>

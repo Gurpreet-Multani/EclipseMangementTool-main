@@ -49,9 +49,9 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Admins and Managers can update any user's profile, role, title, and pay rates
         canManageTeam() ||
-        // A Representative updating their own profile CANNOT change role, title, or payRates
+        // A Representative updating their own profile CANNOT change role, title, payRates, or approvalStatus
         (request.auth.uid == userId &&
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'title', 'payRates']))
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'title', 'payRates', 'approvalStatus']))
       );
       allow delete: if isAdmin();
     }

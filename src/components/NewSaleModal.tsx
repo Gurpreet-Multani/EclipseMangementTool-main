@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { OrderStatus } from '../types';
 import { X, Plus, DollarSign, Calendar, MapPin, Zap, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { US_STATES } from '../lib/states';
 
 interface NewSaleModalProps {
   onClose: () => void;
@@ -172,9 +173,9 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ onClose }) => {
                 onChange={(e) => setState(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
               >
-                {['TX', 'FL', 'NC', 'AZ', 'OH', 'GA', 'TN', 'SC', 'IN', 'NV'].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {US_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.code} - {s.name}
                   </option>
                 ))}
               </select>

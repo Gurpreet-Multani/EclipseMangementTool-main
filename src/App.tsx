@@ -17,9 +17,12 @@ import { PushNotificationToast } from './components/PushNotificationToast';
 import { PendingReviewsModal } from './components/PendingReviewsModal';
 import { CompletedCoursesModal } from './components/CompletedCoursesModal';
 import { LoginView } from './components/LoginView';
+import { PendingApprovalView } from './components/PendingApprovalView';
+import { RejectedAccessView } from './components/RejectedAccessView';
+import { AccessApprovalsModal } from './components/AccessApprovalsModal';
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, customRoles, createRole, updateRole, deleteRole } = useAuth();
+  const { currentUser, authLoading, customRoles, createRole, updateRole, deleteRole, logout, refreshCurrentUserProfile } = useAuth();
   const { courses, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [currentTab, setCurrentTab] = useState<string>('work');
   const [showNewSaleModal, setShowNewSaleModal] = useState<boolean>(false);
@@ -28,6 +31,7 @@ const MainAppContent: React.FC = () => {
   const [showRoleManagementModal, setShowRoleManagementModal] = useState<boolean>(false);
   const [showPendingReviewsModal, setShowPendingReviewsModal] = useState<boolean>(false);
   const [showCompletedCoursesModal, setShowCompletedCoursesModal] = useState<boolean>(false);
+  const [showApprovalsModal, setShowApprovalsModal] = useState<boolean>(false);
 
   // Internal Messaging & Push Dispatch State
   const [showMessagingModal, setShowMessagingModal] = useState<boolean>(false);
@@ -42,8 +46,40 @@ const MainAppContent: React.FC = () => {
     setShowMessagingModal(true);
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#020817] flex flex-col items-center justify-center text-slate-200">
+        <div className="w-10 h-10 border-3 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mb-4" />
+        <p className="text-xs font-semibold text-slate-400 tracking-wide uppercase">
+          Verifying Eclipse Security Session...
+        </p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return <LoginView />;
+  }
+
+  // Account Approval Gating
+  const userApprovalStatus = currentUser.approvalStatus || 'approved';
+  if (userApprovalStatus === 'pending') {
+    return (
+      <PendingApprovalView
+        user={currentUser}
+        onRefreshStatus={refreshCurrentUserProfile}
+        onLogout={logout}
+      />
+    );
+  }
+
+  if (userApprovalStatus === 'rejected') {
+    return (
+      <RejectedAccessView
+        user={currentUser}
+        onLogout={logout}
+      />
+    );
   }
 
   return (
@@ -70,6 +106,7 @@ const MainAppContent: React.FC = () => {
           onOpenMessaging={() => handleOpenMessaging()}
           onOpenPendingReviews={() => setShowPendingReviewsModal(true)}
           onOpenCompletedCourses={() => setShowCompletedCoursesModal(true)}
+          onOpenApprovals={() => setShowApprovalsModal(true)}
         />
 
         {/* Tab Views */}
@@ -157,6 +194,11 @@ const MainAppContent: React.FC = () => {
             completedSubmissions={getCompletedSubmissions()}
             courses={courses}
           />
+        )}
+
+        {/* Access Approvals & Whitelist Modal */}
+        {showApprovalsModal && (
+          <AccessApprovalsModal onClose={() => setShowApprovalsModal(false)} />
         )}
         </div>
       </div>

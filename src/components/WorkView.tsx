@@ -22,7 +22,9 @@ import {
   Plus,
   BarChart3,
   Scale,
-  MessageSquare
+  MessageSquare,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -36,6 +38,9 @@ import {
   Cell
 } from 'recharts';
 import confetti from 'canvas-confetti';
+import { US_STATES } from '../lib/states';
+import { WorkExportModal } from './WorkExportModal';
+import { downloadCsv } from '../lib/csvExport';
 
 interface WorkViewProps {
   onOpenNewSale: () => void;
@@ -71,6 +76,9 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
   // Selected order for status update modal
   const [selectedOrder, setSelectedOrder] = useState<SaleOrder | null>(null);
+
+  // Admin CSV Performance Export Modal state
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
   const fieldFocusSnapshot = useMemo(() => {
     const now = new Date();
@@ -484,30 +492,44 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
           </p>
         </div>
 
-        {/* Sub-Tab Selector: My Stats vs My Sales */}
-        <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800 self-start sm:self-center">
-          <button
-            onClick={() => setSubTab('stats')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${
-              subTab === 'stats'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>My Stats & Team</span>
-          </button>
-          <button
-            onClick={() => setSubTab('sales')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${
-              subTab === 'sales'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>My Sales & Orders</span>
-          </button>
+        {/* Sub-Tab Selector: My Stats vs My Sales & Admin Export Action */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowExportModal(true)}
+              className="px-3 py-1.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] sm:text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+              title="Export Performance and Sales Records to CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Export CSV</span>
+            </button>
+          )}
+
+          <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800">
+            <button
+              onClick={() => setSubTab('stats')}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                subTab === 'stats'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>My Stats & Team</span>
+            </button>
+            <button
+              onClick={() => setSubTab('sales')}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                subTab === 'sales'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>My Sales & Orders</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1208,13 +1230,12 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   onChange={(e) => setFilterState(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="all">All States</option>
-                  <option value="TX">Texas (TX)</option>
-                  <option value="FL">Florida (FL)</option>
-                  <option value="NC">North Carolina (NC)</option>
-                  <option value="AZ">Arizona (AZ)</option>
-                  <option value="OH">Ohio (OH)</option>
-                  <option value="GA">Georgia (GA)</option>
+                  <option value="all">All 52 States & Territories</option>
+                  {US_STATES.map((st) => (
+                    <option key={st.code} value={st.code}>
+                      {st.name} ({st.code})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

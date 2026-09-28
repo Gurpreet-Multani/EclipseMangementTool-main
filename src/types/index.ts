@@ -55,6 +55,8 @@ export interface FiberAgreement {
   version: string;
 }
 
+export type ApprovalStatus = 'approved' | 'pending' | 'rejected';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -63,6 +65,11 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   title: string;
+  approvalStatus?: ApprovalStatus;
+  approvedBy?: string;
+  approvedAt?: string;
+  requestedAt?: string;
+  rejectionReason?: string;
   managerId?: string;
   managerName?: string;
   dateOfBirth: string;

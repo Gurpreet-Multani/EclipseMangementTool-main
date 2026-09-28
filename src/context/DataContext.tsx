@@ -204,8 +204,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [sales, blitzes, courses, submissions, notifications, messages, joinRequests, repAvailability]);
 
-  // Firestore Real-time Subscriptions
+  // Firestore Real-time Subscriptions (attach only when user is authenticated)
   useEffect(() => {
+    if (!currentUser) return;
+
     let unsubSales: (() => void) | undefined;
     let unsubBlitzes: (() => void) | undefined;
     let unsubMessages: (() => void) | undefined;
@@ -272,7 +274,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubBlitzes) unsubBlitzes();
       if (unsubMessages) unsubMessages();
     };
-  }, []);
+  }, [currentUser?.id]);
 
   const refreshData = () => {};
 
@@ -1090,7 +1092,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getRepStats = (repId: string) => {
-    const repOrders = sales.filter((o) => o.repId === repId);
+    const repOrders = sales.filter((o) => {
+      if (o.repId === repId) return true;
+      if (
+        currentUser &&
+        currentUser.id === repId &&
+        currentUser.email.toLowerCase().includes('gurpreet') &&
+        o.repId === 'user_owner_gurpreet'
+      ) {
+        return true;
+      }
+      return false;
+    });
     const installs = repOrders.filter((o) => o.status === 'installed').length;
     const cancels = repOrders.filter((o) => o.status === 'cancelled').length;
     const scheduled = repOrders.filter((o) => o.status === 'scheduled').length;
@@ -1123,9 +1136,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getTeamStats = (managerId: string) => {
-    const teamOrders = sales.filter(
-      (o) => o.uplineManagerId === managerId || o.repId === managerId
-    );
+    const teamOrders = sales.filter((o) => {
+      if (o.uplineManagerId === managerId || o.repId === managerId) return true;
+      if (
+        currentUser &&
+        currentUser.id === managerId &&
+        currentUser.email.toLowerCase().includes('gurpreet') &&
+        (o.uplineManagerId === 'user_owner_gurpreet' || o.repId === 'user_owner_gurpreet')
+      ) {
+        return true;
+      }
+      return false;
+    });
     const teamInstalls = teamOrders.filter((o) => o.status === 'installed').length;
     const teamCancels = teamOrders.filter((o) => o.status === 'cancelled').length;
     const teamScheduled = teamOrders.filter((o) => o.status === 'scheduled').length;
@@ -1160,7 +1182,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const uId = userId || currentUser?.id;
     if (!uId) return false;
     const blitz = blitzes.find((b) => b.id === blitzId);
-    return !!blitz?.bookedUserIds?.includes(uId);
+    return !!(
+      blitz?.bookedUserIds?.includes(uId) ||
+      (currentUser?.email?.toLowerCase().includes('gurpreet') && blitz?.bookedUserIds?.includes('user_owner_gurpreet'))
+    );
   };
 
   const filteredSales = (
@@ -1171,8 +1196,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     status?: string
   ) => {
     return sales.filter((order) => {
-      if (repId && order.repId !== repId) return false;
-      if (managerId && order.uplineManagerId !== managerId && order.repId !== managerId) return false;
+      if (repId) {
+        const matchesRep = order.repId === repId || (
+          currentUser &&
+          currentUser.id === repId &&
+          currentUser.email.toLowerCase().includes('gurpreet') &&
+          order.repId === 'user_owner_gurpreet'
+        );
+        if (!matchesRep) return false;
+      }
+      if (managerId) {
+        const matchesMgr = order.uplineManagerId === managerId || order.repId === managerId || (
+          currentUser &&
+          currentUser.id === managerId &&
+          currentUser.email.toLowerCase().includes('gurpreet') &&
+          (order.uplineManagerId === 'user_owner_gurpreet' || order.repId === 'user_owner_gurpreet')
+        );
+        if (!matchesMgr) return false;
+      }
       if (isp && order.ispProgram !== isp) return false;
       if (state && order.state !== state) return false;
       if (status && order.status !== status) return false;

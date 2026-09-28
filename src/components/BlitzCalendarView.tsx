@@ -26,6 +26,7 @@ import {
   Info
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { US_STATES } from '../lib/states';
 
 interface BlitzCalendarViewProps {
   onOpenMessagingForBlitz?: (blitzId: string) => void;
@@ -438,15 +439,14 @@ export const BlitzCalendarView: React.FC<BlitzCalendarViewProps> = ({ onOpenMess
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="bg-transparent text-slate-200 font-bold text-[10px] sm:text-xs focus:outline-none cursor-pointer"
+                className="bg-transparent text-slate-200 font-bold text-[10px] sm:text-xs focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[200px]"
               >
-                <option value="all">All States</option>
-                <option value="TX">Texas (TX)</option>
-                <option value="FL">Florida (FL)</option>
-                <option value="NC">North Carolina (NC)</option>
-                <option value="AZ">Arizona (AZ)</option>
-                <option value="OH">Ohio (OH)</option>
-                <option value="GA">Georgia (GA)</option>
+                <option value="all" className="bg-slate-900 text-white">All 52 States & Territories</option>
+                {US_STATES.map((st) => (
+                  <option key={st.code} value={st.code} className="bg-slate-900 text-white">
+                    {st.name} ({st.code})
+                  </option>
+                ))}
               </select>
             </div>
 
