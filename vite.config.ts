@@ -4,8 +4,10 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  // If building for GitHub Pages repo EclipseMangementTool-main:
+  const isGitHubPages = process.env.GITHUB_PAGES === 'true' || process.env.NODE_ENV === 'production';
   return {
-    base: process.env.VITE_BASE_PATH || './',
+    base: process.env.VITE_BASE_PATH || (isGitHubPages ? '/EclipseMangementTool-main/' : './'),
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
