@@ -57,6 +57,11 @@ interface AuthContextType {
   assignRoleToUser: (userId: string, roleId: string) => void;
   // RBAC Flags & Helpers
   isAdmin: boolean;
+  isRegionalDirector: boolean;
+  isBlitzManager: boolean;
+  isTeamLead: boolean;
+  isCorporateTrainer: boolean;
+  isFieldSalesRep: boolean;
   isManager: boolean;
   isRepresentative: boolean;
   canChangeUserRolesAndTitles: boolean;
@@ -64,6 +69,11 @@ interface AuthContextType {
   canUploadCoursework: boolean;
   canManageTeam: boolean;
   canManageAllUsers: boolean;
+  canLaunchStateBlitz: boolean;
+  canCutTurf: boolean;
+  canManageLogisticsAndBadging: boolean;
+  canNegotiateMasterAgreements: boolean;
+  canManageAgencyCashFlow: boolean;
   canCreateRoles: boolean;
   canEditPermissions: boolean;
   permissions: RolePermissions;
@@ -667,17 +677,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
   };
 
-  // RBAC Role normalization
-  const currentRole = currentUser?.role?.toLowerCase() || 'representative';
-  const isAdmin = currentRole === 'admin' || currentRole === 'owner';
-  const isManager = currentRole === 'manager';
-  const isRepresentative = !isAdmin && !isManager;
+  // RBAC Role normalization & 5-Tier Hierarchy
+  const currentRole = (currentUser?.role || 'Field Sales Representative').trim();
+  const currentRoleLower = currentRole.toLowerCase();
 
-  const canChangeUserRolesAndTitles = isAdmin || isManager;
-  const canChangePayRates = isAdmin || isManager;
-  const canUploadCoursework = isAdmin || isManager;
-  const canManageTeam = isAdmin || isManager;
-  const canManageAllUsers = isAdmin;
+  // Primary Hierarchy Levels
+  const isAdmin = currentRoleLower === 'admin' || currentRoleLower === 'owner';
+  const isRegionalDirector = isAdmin || currentRoleLower.includes('regional director');
+  const isBlitzManager = isRegionalDirector || currentRoleLower.includes('blitz manager') || currentRoleLower === 'manager';
+  const isTeamLead = isBlitzManager || currentRoleLower.includes('team lead');
+  const isCorporateTrainer = isTeamLead || currentRoleLower.includes('corporate trainer') || currentRoleLower.includes('junior lead');
+  const isFieldSalesRep = !isCorporateTrainer;
+
+  // Legacy mappings for backwards compatibility
+  const isManager = isBlitzManager;
+  const isRepresentative = isFieldSalesRep || (!isAdmin && !isBlitzManager);
+
+  // Authority & Governance Permissions
+  const canManageAllUsers = isAdmin || isRegionalDirector;
+  const canManageTeam = isTeamLead; // Team leads manage squads of 2-4; Blitz managers manage squads of 4+
+  const canChangeUserRolesAndTitles = isAdmin || isRegionalDirector || isBlitzManager;
+  const canChangePayRates = isAdmin || isRegionalDirector;
+  const canUploadCoursework = isAdmin || isRegionalDirector || isBlitzManager || isCorporateTrainer;
+  const canLaunchStateBlitz = isAdmin || isRegionalDirector || isBlitzManager;
+  const canCutTurf = isAdmin || isRegionalDirector || isBlitzManager;
+  const canManageLogisticsAndBadging = isAdmin || isRegionalDirector || isBlitzManager;
+  const canNegotiateMasterAgreements = isAdmin || isRegionalDirector;
+  const canManageAgencyCashFlow = isAdmin || isRegionalDirector;
   const canCreateRoles = isAdmin;
   const canEditPermissions = isAdmin;
 
@@ -687,12 +713,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canChangeUserRolesAndTitles,
     canChangePayRates,
     canUploadCoursework,
-    canLaunchStateBlitz: isAdmin || isManager,
-    canViewAllSales: isAdmin,
-    canViewTeamSales: isAdmin || isManager,
+    canLaunchStateBlitz,
+    canViewAllSales: isBlitzManager,
+    canViewTeamSales: isTeamLead,
     canSubmitSales: true,
     canAccessTraining: true,
     canAccessProfile: true,
+    canCutTurf,
+    canManageLogisticsAndBadging,
+    canNegotiateMasterAgreements,
+    canManageAgencyCashFlow,
     canCreateRoles,
     canEditPermissions,
   };
@@ -977,6 +1007,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getRole,
         assignRoleToUser,
         isAdmin,
+        isRegionalDirector,
+        isBlitzManager,
+        isTeamLead,
+        isCorporateTrainer,
+        isFieldSalesRep,
         isManager,
         isRepresentative,
         canChangeUserRolesAndTitles,
@@ -984,6 +1019,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         canUploadCoursework,
         canManageTeam,
         canManageAllUsers,
+        canLaunchStateBlitz,
+        canCutTurf,
+        canManageLogisticsAndBadging,
+        canNegotiateMasterAgreements,
+        canManageAgencyCashFlow,
         canCreateRoles,
         canEditPermissions,
         permissions,

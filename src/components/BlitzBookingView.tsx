@@ -32,7 +32,7 @@ interface BlitzBookingViewProps {
 }
 
 export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessagingForBlitz }) => {
-  const { currentUser, isAdmin, isManager, isRepresentative, canManageTeam, allUsers } = useAuth();
+  const { currentUser, isAdmin, isManager, isRepresentative, canManageTeam, canLaunchStateBlitz, allUsers } = useAuth();
   const {
     blitzes,
     bookBlitz,
@@ -212,8 +212,8 @@ export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessag
             </button>
           </div>
 
-          {/* Action Button for Admins / Managers */}
-          {(isAdmin || isManager) && (
+          {/* Action Button for Leadership (Regional Director & Blitz Manager) */}
+          {canLaunchStateBlitz && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 w-full sm:w-auto shrink-0 whitespace-nowrap"

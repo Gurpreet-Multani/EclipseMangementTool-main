@@ -132,13 +132,18 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
   // --- Single User Actions ---
   const handleApprove = async (userId: string) => {
     setActionNotice(null);
-    const roleToAssign = selectedRoles[userId] || 'Representative';
-    const titleToAssign =
-      roleToAssign === 'Admin'
-        ? 'Executive Administrator'
-        : roleToAssign === 'Manager'
-        ? 'Regional Operations Director'
-        : 'Fiber Field Specialist';
+    const roleToAssign = selectedRoles[userId] || 'Field Sales Representative';
+    const defaultTitles: Record<string, string> = {
+      'Field Sales Representative': 'Level 1 Field Sales Representative',
+      'Corporate Trainer': 'Level 2 Corporate Trainer / Junior Lead',
+      'Team Lead': 'Level 3 Team Lead',
+      'Blitz Manager': 'Senior Blitz Manager & Operations Lead',
+      'Regional Director': 'Regional Director',
+      'Admin': 'Executive Administrator',
+      'Manager': 'Senior Blitz Manager',
+      'Representative': 'Level 1 Field Sales Representative',
+    };
+    const titleToAssign = defaultTitles[roleToAssign] || 'Fiber Field Specialist';
 
     const success = await approveUser(userId, roleToAssign, titleToAssign);
     if (success) {
@@ -191,12 +196,17 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
 
     for (const userId of ids) {
       const role = selectedRoles[userId] || bulkPendingRole;
-      const title =
-        role === 'Admin'
-          ? 'Executive Administrator'
-          : role === 'Manager'
-          ? 'Regional Operations Director'
-          : titleToAssign;
+      const defaultTitles: Record<string, string> = {
+        'Field Sales Representative': 'Level 1 Field Sales Representative',
+        'Corporate Trainer': 'Level 2 Corporate Trainer / Junior Lead',
+        'Team Lead': 'Level 3 Team Lead',
+        'Blitz Manager': 'Senior Blitz Manager & Operations Lead',
+        'Regional Director': 'Regional Director',
+        'Admin': 'Executive Administrator',
+        'Manager': 'Senior Blitz Manager',
+        'Representative': 'Level 1 Field Sales Representative',
+      };
+      const title = defaultTitles[role] || titleToAssign;
 
       const ok = await approveUser(userId, role, title);
       if (ok) successCount++;
@@ -450,9 +460,11 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                         onChange={(e) => setBulkPendingRole(e.target.value as UserRole)}
                         className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer"
                       >
-                        <option value="Representative" className="bg-slate-900 text-white">Representative</option>
-                        <option value="Manager" className="bg-slate-900 text-white">Manager</option>
-                        <option value="Admin" className="bg-slate-900 text-white">Admin</option>
+                        <option value="Field Sales Representative" className="bg-slate-900 text-white">Level 1: Field Sales Rep</option>
+                        <option value="Corporate Trainer" className="bg-slate-900 text-white">Level 2: Corporate Trainer</option>
+                        <option value="Team Lead" className="bg-slate-900 text-white">Level 3: Team Lead</option>
+                        <option value="Blitz Manager" className="bg-slate-900 text-white">Blitz Manager</option>
+                        <option value="Regional Director" className="bg-slate-900 text-white">Regional Director</option>
                       </select>
                     </div>
 
@@ -571,9 +583,11 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                             }
                             className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-amber-400"
                           >
-                            <option value="Representative">Representative</option>
-                            <option value="Manager">Manager</option>
-                            <option value="Admin">Admin</option>
+                            <option value="Field Sales Representative">Level 1: Field Sales Rep</option>
+                            <option value="Corporate Trainer">Level 2: Corporate Trainer</option>
+                            <option value="Team Lead">Level 3: Team Lead</option>
+                            <option value="Blitz Manager">Blitz Manager</option>
+                            <option value="Regional Director">Regional Director</option>
                           </select>
                         </div>
 
@@ -676,17 +690,28 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                   </label>
                   <select
                     value={preApproveForm.role}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const r = e.target.value as UserRole;
+                      const defaultTitles: Record<string, string> = {
+                        'Field Sales Representative': 'Level 1 Field Sales Representative',
+                        'Corporate Trainer': 'Level 2 Corporate Trainer / Junior Lead',
+                        'Team Lead': 'Level 3 Team Lead',
+                        'Blitz Manager': 'Senior Blitz Manager & Operations Lead',
+                        'Regional Director': 'Regional Director',
+                      };
                       setPreApproveForm((prev) => ({
                         ...prev,
-                        role: e.target.value as UserRole,
-                      }))
-                    }
+                        role: r,
+                        title: defaultTitles[r] || prev.title,
+                      }));
+                    }}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="Representative">Representative</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Admin">Admin</option>
+                    <option value="Field Sales Representative">Level 1: Field Sales Representative</option>
+                    <option value="Corporate Trainer">Level 2: Corporate Trainer / Junior Lead</option>
+                    <option value="Team Lead">Level 3: Team Lead</option>
+                    <option value="Blitz Manager">Blitz Manager</option>
+                    <option value="Regional Director">Regional Director</option>
                   </select>
                 </div>
 

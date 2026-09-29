@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
+import { VisualHierarchyTree } from './VisualHierarchyTree';
 import {
   User,
   CreditCard,
@@ -22,7 +23,8 @@ import {
   Calendar,
   AlertTriangle,
   Sparkles,
-  Users
+  Users,
+  GitFork
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -153,6 +155,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savedSuccessMsg, setSavedSuccessMsg] = useState('');
+  const [showHierarchyTree, setShowHierarchyTree] = useState(true);
 
   // Synchronize when switching selected user
   const handleSelectUserToEdit = (uId: string) => {
@@ -507,10 +510,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
                       : 'text-slate-500 cursor-not-allowed bg-slate-950/40 select-none'
                   }`}
                 >
-                  <optgroup label="Default Roles">
-                    <option value="Representative">Representative (Sales & Training Access)</option>
-                    <option value="Manager">Manager (Team Management & Coursework Authoring)</option>
-                    <option value="Admin">Admin (Full System Control)</option>
+                  <optgroup label="Eclipse Core Roles">
+                    <option value="Field Sales Representative">Level 1: Field Sales Representative (Entry Level)</option>
+                    <option value="Corporate Trainer">Level 2: Corporate Trainer / Junior Lead</option>
+                    <option value="Team Lead">Level 3: Team Lead (Squad Leader)</option>
+                    <option value="Blitz Manager">Blitz Manager (Operations Hub Lead)</option>
+                    <option value="Regional Director">Regional Director (Executive Leadership)</option>
                   </optgroup>
                   {customRoles.length > 0 && (
                     <optgroup label="Custom Roles">
@@ -527,6 +532,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Visual Team Command Structure Tree */}
+          <div className="pt-4 border-t border-slate-800/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitFork className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-sm font-bold text-white">Visual Team Hierarchy Tree</h4>
+                <span className="text-[10px] text-slate-400 hidden sm:inline">
+                  (Regional Directors → Blitz Managers → Team Leads → Reps)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHierarchyTree(!showHierarchyTree)}
+                className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showHierarchyTree ? 'Collapse Tree' : 'Expand Visual Tree'}</span>
+              </button>
+            </div>
+
+            {showHierarchyTree && (
+              <VisualHierarchyTree
+                users={allUsers}
+                currentUserId={targetUserId || currentUser?.id}
+                onSelectUser={(uId) => handleSelectUserToEdit(uId)}
+              />
+            )}
           </div>
         </div>
 

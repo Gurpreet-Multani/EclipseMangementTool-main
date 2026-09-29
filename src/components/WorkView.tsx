@@ -972,27 +972,44 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                                 alt=""
                                 className="w-6 h-6 rounded-full object-cover"
                               />
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-white font-medium">{row.user.displayName}</span>
-                                {isMe ? (
-                                  <span className="ml-1 px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold">
-                                    YOU
-                                  </span>
-                                ) : (
-                                  (isAdmin || isManager || canManageTeam) && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onOpenDirectMessage?.(row.user.id);
-                                      }}
-                                      className="p-1 rounded text-slate-500 hover:text-emerald-400 hover:bg-slate-800 transition-colors ml-1"
-                                      title={`Send Direct Push Message to ${row.user.displayName}`}
-                                    >
-                                      <MessageSquare className="w-3.5 h-3.5" />
-                                    </button>
-                                  )
-                                )}
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-white font-medium">{row.user.displayName}</span>
+                                  {isMe ? (
+                                    <span className="ml-1 px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold">
+                                      YOU
+                                    </span>
+                                  ) : (
+                                    (isAdmin || isManager || canManageTeam) && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onOpenDirectMessage?.(row.user.id);
+                                        }}
+                                        className="p-1 rounded text-slate-500 hover:text-emerald-400 hover:bg-slate-800 transition-colors ml-1"
+                                        title={`Send Direct Push Message to ${row.user.displayName}`}
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                      </button>
+                                    )
+                                  )}
+                                </div>
+                                <span
+                                  className={`text-[9px] font-bold uppercase w-fit px-1.5 py-0.2 rounded mt-0.5 ${
+                                    row.user.role?.includes('Regional Director')
+                                      ? 'text-rose-300 bg-rose-500/10'
+                                      : row.user.role?.includes('Blitz Manager')
+                                      ? 'text-amber-300 bg-amber-500/10'
+                                      : row.user.role?.includes('Team Lead')
+                                      ? 'text-purple-300 bg-purple-500/10'
+                                      : row.user.role?.includes('Corporate Trainer')
+                                      ? 'text-emerald-300 bg-emerald-500/10'
+                                      : 'text-cyan-300 bg-cyan-500/10'
+                                  }`}
+                                >
+                                  {row.user.role}
+                                </span>
                               </div>
                             </div>
                           </td>

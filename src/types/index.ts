@@ -1,4 +1,13 @@
-export type UserRole = 'Admin' | 'Manager' | 'Representative' | string;
+export type UserRole =
+  | 'Field Sales Representative'
+  | 'Corporate Trainer'
+  | 'Team Lead'
+  | 'Blitz Manager'
+  | 'Regional Director'
+  | 'Admin'
+  | 'Manager'
+  | 'Representative'
+  | string;
 
 export interface RolePermissions {
   canManageAllUsers: boolean;
@@ -12,6 +21,10 @@ export interface RolePermissions {
   canSubmitSales: boolean;
   canAccessTraining: boolean;
   canAccessProfile: boolean;
+  canCutTurf?: boolean;
+  canManageLogisticsAndBadging?: boolean;
+  canNegotiateMasterAgreements?: boolean;
+  canManageAgencyCashFlow?: boolean;
   canCreateRoles?: boolean;
   canEditPermissions?: boolean;
 }

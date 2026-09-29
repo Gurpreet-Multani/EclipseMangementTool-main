@@ -88,11 +88,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline font-semibold">RBAC Access</span>
             <span
               className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
-                isAdmin
-                  ? 'bg-amber-400/20 text-amber-400'
-                  : isManager
-                  ? 'bg-emerald-400/20 text-emerald-400'
-                  : 'bg-cyan-400/20 text-emerald-400'
+                currentUser?.role?.includes('Regional Director') || isAdmin
+                  ? 'bg-rose-400/20 text-rose-300 border border-rose-400/30'
+                  : currentUser?.role?.includes('Blitz Manager')
+                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                  : currentUser?.role?.includes('Team Lead')
+                  ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
+                  : currentUser?.role?.includes('Corporate Trainer')
+                  ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                  : 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
               }`}
             >
               {currentUser?.role}
