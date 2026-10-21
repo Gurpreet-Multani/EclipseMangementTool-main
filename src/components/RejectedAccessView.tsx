@@ -10,7 +10,7 @@ interface RejectedAccessViewProps {
 
 export const RejectedAccessView: React.FC<RejectedAccessViewProps> = ({ user, onLogout }) => {
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(244,63,94,0.12),transparent_40%),linear-gradient(135deg,#020817_0%,#1a080c_50%,#020817_100%)] flex flex-col justify-center items-center p-4 sm:p-6 text-slate-100">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(244,63,94,0.12),transparent_40%),linear-gradient(135deg,#020817_0%,#1a080c_50%,#020817_100%)] flex flex-col justify-center items-center px-4 pt-[max(env(safe-area-inset-top,0px),1.5rem)] pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] sm:p-6 text-slate-100">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-3">
           <div className="relative mx-auto w-20 h-20 rounded-full border border-rose-500/40 bg-[#160a0d] shadow-[0_0_35px_rgba(244,63,94,0.2)] ring-4 ring-rose-500/20 flex items-center justify-center p-1.5">

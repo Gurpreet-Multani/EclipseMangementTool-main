@@ -52,7 +52,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     isButtonVisible,
     isButtonDisabled,
     actualIsAdmin,
-    effectiveRole
+    effectiveRole,
+    isSimulating
   } = useAuth();
   const { notifications, messages, markNotificationRead, clearAllNotifications, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -65,7 +66,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const pendingReviewsCount = getAllSubmissionsPendingReview().length;
 
   return (
-    <header className="sticky top-0 z-30 bg-[linear-gradient(180deg,rgba(2,8,23,0.92),rgba(2,12,10,0.84))] backdrop-blur-xl border-b border-emerald-500/15 px-3 py-2 sm:px-6 shadow-[0_10px_30px_rgba(2,6,23,0.22)]">
+    <header
+      className={`sticky top-0 z-30 bg-[linear-gradient(180deg,rgba(2,8,23,0.96),rgba(2,12,10,0.92))] backdrop-blur-xl border-b border-emerald-500/15 px-3 sm:px-6 pb-2 shadow-[0_10px_30px_rgba(2,6,23,0.22)] ${
+        isSimulating
+          ? 'pt-2'
+          : 'pt-[max(env(safe-area-inset-top,0px),0.5rem)] sm:pt-2'
+      }`}
+    >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         {/* Brand & Badge */}
         <div className="flex items-center gap-2 min-w-0 flex-shrink">
@@ -81,6 +88,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">Eclipse</span>
               <span className="text-[8px] sm:text-[10px] uppercase font-bold tracking-[0.18em] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-200 border border-emerald-400/30">
                 PRO
+              </span>
+              <span className="sm:hidden inline-flex items-center gap-1 text-[8px] text-emerald-300 font-mono bg-emerald-950/60 px-1 py-0.5 rounded border border-emerald-500/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Sync
               </span>
             </div>
             <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium hidden sm:block truncate">

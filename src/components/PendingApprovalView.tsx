@@ -50,7 +50,7 @@ export const PendingApprovalView: React.FC<PendingApprovalViewProps> = ({
     : new Date().toLocaleDateString();
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.12),transparent_40%),linear-gradient(135deg,#020817_0%,#091512_50%,#020817_100%)] flex flex-col justify-center items-center p-4 sm:p-6 text-slate-100 relative overflow-hidden">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.12),transparent_40%),linear-gradient(135deg,#020817_0%,#091512_50%,#020817_100%)] flex flex-col justify-center items-center px-4 pt-[max(env(safe-area-inset-top,0px),1.5rem)] pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] sm:p-6 text-slate-100 relative overflow-hidden">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
