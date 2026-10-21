@@ -85,38 +85,38 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header
-      className={`sticky top-0 z-30 transition-all duration-300 ease-in-out px-3 sm:px-6 pb-2 ${
+      className={`sticky top-0 z-30 transition-all duration-300 ease-in-out px-3 sm:px-6 pb-2.5 ${
         isSimulating
-          ? 'pt-2'
-          : 'pt-[max(env(safe-area-inset-top,0px),0.5rem)] sm:pt-2'
+          ? 'pt-2.5'
+          : 'pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] sm:pt-3.5'
       } ${
         isScrolled
-          ? 'bg-[linear-gradient(180deg,rgba(2,8,23,0.97),rgba(4,22,18,0.94))] backdrop-blur-xl border-b border-emerald-500/20 shadow-[0_10px_30px_rgba(2,6,23,0.35)]'
-          : 'bg-[#020817] border-b border-slate-800/80 shadow-none'
+          ? 'bg-[linear-gradient(180deg,rgba(2,8,23,0.98),rgba(4,22,18,0.95))] backdrop-blur-xl border-b border-emerald-500/20 shadow-[0_10px_30px_rgba(2,6,23,0.35)]'
+          : 'bg-[#020817] border-b border-slate-800/90 shadow-none'
       }`}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         {/* Brand & Badge */}
         <div className="flex items-center gap-2 min-w-0 flex-shrink">
-          <div className="relative flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full border border-emerald-400/60 bg-[#081b18] shadow-[0_0_18px_rgba(16,185,129,0.18)] ring-2 ring-emerald-500/25 flex-shrink-0">
+          <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-emerald-400/80 bg-slate-900 shadow-md ring-2 ring-emerald-500/30 flex-shrink-0">
             <img
               src={eclipseLogo}
               alt="Eclipse logo"
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
             />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">Eclipse</span>
-              <span className="text-[8px] sm:text-[10px] uppercase font-bold tracking-[0.18em] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-200 border border-emerald-400/30">
+              <span className="font-black text-base tracking-tight text-white truncate drop-shadow-sm">Eclipse</span>
+              <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-[0.18em] px-2 py-0.5 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm">
                 PRO
               </span>
-              <span className="sm:hidden inline-flex items-center gap-1 text-[8px] text-emerald-300 font-mono bg-emerald-950/60 px-1 py-0.5 rounded border border-emerald-500/25">
+              <span className="sm:hidden inline-flex items-center gap-1 text-[8px] text-emerald-300 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-500/40 font-bold shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Sync
               </span>
             </div>
-            <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium hidden sm:block truncate">
+            <p className="text-[9px] sm:text-[10px] text-slate-300 font-medium hidden sm:block truncate">
               Field Sales & State Blitz Operations
             </p>
           </div>
@@ -129,26 +129,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('rbac_matrix') ? undefined : onOpenRbacModal}
               disabled={isButtonDisabled('rbac_matrix')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all shadow-sm ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
                 isButtonDisabled('rbac_matrix')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-slate-200 hover:text-white'
+                  : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white font-medium ring-1 ring-white/5'
               }`}
               title={isButtonDisabled('rbac_matrix') ? 'RBAC Access View disabled for this role by Administrator' : 'Inspect Role-Based Access Control (RBAC) Permissions'}
             >
-              <Shield className={`w-3.5 h-3.5 ${isButtonDisabled('rbac_matrix') ? 'text-slate-500' : 'text-emerald-400'}`} />
-              <span className="hidden md:inline font-semibold">RBAC Access</span>
+              <Shield className={`w-4 h-4 stroke-[2.2px] ${isButtonDisabled('rbac_matrix') ? 'text-slate-500' : 'text-emerald-300 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]'}`} />
+              <span className="hidden md:inline font-bold">RBAC Access</span>
               <span
-                className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide border shadow-sm ${
                   currentUser?.role?.includes('Regional Director') || isAdmin
-                    ? 'bg-rose-400/20 text-rose-300 border border-rose-400/30'
+                    ? 'bg-rose-500/25 text-rose-200 border-rose-400/50'
                     : currentUser?.role?.includes('Blitz Manager')
-                    ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                    ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
                     : currentUser?.role?.includes('Team Lead')
-                    ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
+                    ? 'bg-purple-500/25 text-purple-200 border-purple-400/50'
                     : currentUser?.role?.includes('Corporate Trainer')
-                    ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                    : 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                    ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
+                    : 'bg-cyan-500/25 text-cyan-200 border-cyan-400/50'
                 }`}
               >
                 {effectiveRole}
@@ -161,15 +161,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('role_manager') ? undefined : onOpenRoleManagementModal}
               disabled={isButtonDisabled('role_manager')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all shadow-sm ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
                 isButtonDisabled('role_manager')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-indigo-950/80 hover:bg-indigo-900 border-indigo-600/70 text-indigo-200 hover:text-white'
+                  : 'bg-indigo-950/95 hover:bg-indigo-900 border-indigo-500/70 text-indigo-100 font-bold ring-1 ring-indigo-400/20'
               }`}
               title={isButtonDisabled('role_manager') ? 'Role Manager disabled for this role by Administrator' : 'Master Control Room: Create & customize roles, disable/hide buttons'}
             >
-              <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden md:inline font-semibold">Master Controls</span>
+              <KeyRound className="w-4 h-4 stroke-[2.2px] text-indigo-300" />
+              <span className="hidden md:inline font-bold">Master Controls</span>
             </button>
           )}
 
@@ -178,14 +178,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('log_sale') ? undefined : onOpenNewSale}
               disabled={isButtonDisabled('log_sale')}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
+              className={`hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all shadow-md ${
                 isButtonDisabled('log_sale')
                   ? 'bg-slate-800 border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20 hover:scale-[1.02]'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/30 hover:scale-[1.02]'
               }`}
               title={isButtonDisabled('log_sale') ? 'Log Sale action disabled for this role by Administrator' : 'Log New Fiber Sale Order'}
             >
-              {isButtonDisabled('log_sale') ? <Lock className="w-3.5 h-3.5 text-slate-500" /> : <PlusCircle className="w-4 h-4 text-slate-950" />}
+              {isButtonDisabled('log_sale') ? <Lock className="w-3.5 h-3.5 text-slate-500" /> : <PlusCircle className="w-4 h-4 stroke-[2.5px] text-slate-950" />}
               <span>Log Fiber Sale</span>
             </button>
           )}
@@ -195,17 +195,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('messaging') ? undefined : onOpenMessaging}
               disabled={isButtonDisabled('messaging')}
-              className={`relative p-2 rounded-xl border transition-colors shadow-sm ${
+              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('messaging')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-slate-200 hover:text-white'
+                  : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white ring-1 ring-white/5'
               }`}
               title={isButtonDisabled('messaging') ? 'Messaging disabled for this role by Administrator' : 'Open Blitz Communications & Direct Messages'}
               aria-label="Internal Messages"
             >
-              <MessageSquare className={`w-4 h-4 ${isButtonDisabled('messaging') ? 'text-slate-500' : 'text-emerald-400'}`} />
+              <MessageSquare className={`w-4 h-4 stroke-[2.2px] ${isButtonDisabled('messaging') ? 'text-slate-500' : 'text-emerald-300'}`} />
               {unreadMessagesCount > 0 && !isButtonDisabled('messaging') && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 shadow-md">
                   {unreadMessagesCount}
                 </span>
               )}
@@ -217,17 +217,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('course_reviews') ? undefined : onOpenPendingReviews}
               disabled={isButtonDisabled('course_reviews')}
-              className={`relative p-2 rounded-xl border transition-colors shadow-sm ${
+              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('course_reviews')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-slate-200 hover:text-white'
+                  : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white ring-1 ring-white/5'
               }`}
               title={isButtonDisabled('course_reviews') ? 'Course reviews disabled for this role by Administrator' : 'Review pending course submissions'}
               aria-label="Pending Reviews"
             >
-              <Clock className={`w-4 h-4 ${isButtonDisabled('course_reviews') ? 'text-slate-500' : 'text-amber-400'}`} />
+              <Clock className={`w-4 h-4 stroke-[2.2px] ${isButtonDisabled('course_reviews') ? 'text-slate-500' : 'text-amber-300'}`} />
               {pendingReviewsCount > 0 && !isButtonDisabled('course_reviews') && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 shadow-md animate-pulse">
                   {pendingReviewsCount}
                 </span>
               )}
@@ -239,15 +239,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('completed_courses') ? undefined : onOpenCompletedCourses}
               disabled={isButtonDisabled('completed_courses')}
-              className={`relative p-2 rounded-xl border transition-colors shadow-sm ${
+              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('completed_courses')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-slate-200 hover:text-white'
+                  : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white ring-1 ring-white/5'
               }`}
               title={isButtonDisabled('completed_courses') ? 'Completed coursework view disabled for this role by Administrator' : 'View completed coursework and add comments'}
               aria-label="Completed Coursework"
             >
-              <CheckCircle className={`w-4 h-4 ${isButtonDisabled('completed_courses') ? 'text-slate-500' : 'text-emerald-400'}`} />
+              <CheckCircle className={`w-4 h-4 stroke-[2.2px] ${isButtonDisabled('completed_courses') ? 'text-slate-500' : 'text-emerald-300'}`} />
             </button>
           )}
 
@@ -256,17 +256,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('account_approvals') ? undefined : onOpenApprovals}
               disabled={isButtonDisabled('account_approvals')}
-              className={`relative p-2 rounded-xl border transition-colors shadow-sm ${
+              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('account_approvals')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                  : 'bg-amber-950/70 hover:bg-amber-900/80 border-amber-500/50 text-amber-200 hover:text-white'
+                  : 'bg-amber-950/90 hover:bg-amber-900 border-amber-500/70 text-amber-200 ring-1 ring-amber-400/20'
               }`}
               title={isButtonDisabled('account_approvals') ? 'Account approvals disabled for this role by Administrator' : 'Manage Account Approvals & Google Whitelist'}
               aria-label="Account Approvals"
             >
-              <UserCheck className={`w-4 h-4 ${isButtonDisabled('account_approvals') ? 'text-slate-500' : 'text-amber-400'}`} />
+              <UserCheck className={`w-4 h-4 stroke-[2.2px] ${isButtonDisabled('account_approvals') ? 'text-slate-500' : 'text-amber-300'}`} />
               {pendingApprovalsCount > 0 && !isButtonDisabled('account_approvals') && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 shadow-md animate-pulse">
                   {pendingApprovalsCount}
                 </span>
               )}
@@ -280,7 +280,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setShowNotifMenu(!showNotifMenu);
                 setShowUserMenu(false);
               }}
-              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white transition-colors shadow-sm"
+              className="relative p-2.5 rounded-xl bg-slate-800/95 hover:bg-slate-700 border border-slate-600/90 text-white transition-all shadow-md ring-1 ring-white/5"
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -353,7 +353,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setShowUserMenu(!showUserMenu);
                 setShowNotifMenu(false);
               }}
-              className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 transition-colors shadow-sm"
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl bg-slate-800/95 hover:bg-slate-700 border border-slate-600/90 text-white transition-all shadow-md ring-1 ring-white/5"
             >
               <div className="relative">
                 <img

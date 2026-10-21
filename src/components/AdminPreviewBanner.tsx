@@ -8,7 +8,7 @@ export const AdminPreviewBanner: React.FC = () => {
   if (!isSimulating || !simulatedRole) return null;
 
   return (
-    <div className="sticky top-0 z-50 bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white px-3 sm:px-6 pt-[max(env(safe-area-inset-top,0px),0.5rem)] pb-2 shadow-lg flex items-center justify-between text-xs font-semibold animate-in slide-in-from-top-2 duration-200">
+    <div className="sticky top-0 z-50 bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white px-3 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-2.5 shadow-lg flex items-center justify-between text-xs font-semibold animate-in slide-in-from-top-2 duration-200">
       <div className="flex items-center gap-2">
         <span className="p-1 rounded-lg bg-black/20">
           <Eye className="w-3.5 h-3.5 text-white" />
