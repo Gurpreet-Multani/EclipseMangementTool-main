@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord } from '../types';
+import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord, CustomerSmsConfig, CustomerSmsMessage } from '../types';
 import { INITIAL_AVAILABILITY, INITIAL_BLITZES, INITIAL_COURSES, INITIAL_JOIN_REQUESTS, INITIAL_MESSAGES, INITIAL_NOTIFICATIONS, INITIAL_SALES } from '../lib/seedData';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { generateDefaultSmsMessages, getOrCreateOrderSmsConfig } from '../lib/customerSms';
 
 interface DataContextType {
   sales: SaleOrder[];
@@ -16,9 +17,12 @@ interface DataContextType {
   repAvailability: RepAvailabilitySlot[];
   activePushToast: InternalMessage | null;
   dismissPushToast: () => void;
-  addSaleOrder: (order: Omit<SaleOrder, 'id' | 'orderNumber' | 'createdAt'>) => Promise<SaleOrder>;
+  addSaleOrder: (order: Omit<SaleOrder, 'id' | 'orderNumber' | 'createdAt'> & { orderNumber?: string }) => Promise<SaleOrder>;
   updateSaleStatus: (orderId: string, newStatus: SaleOrder['status'], notes?: string) => Promise<boolean>;
   deleteSaleOrder: (orderId: string) => Promise<boolean>;
+  updateOrderCustomerSms: (orderId: string, config: CustomerSmsConfig, messages: CustomerSmsMessage[]) => Promise<boolean>;
+  sendCustomerSmsNow: (orderId: string, messageId: string) => Promise<boolean>;
+  triggerCustomerSmsBatchCheck: () => Promise<{ sentCount: number; checkedOrders: number }>;
   bookBlitz: (blitzId: string, travelNotes?: string, roommate?: string) => Promise<{ success: boolean; message: string }>;
   cancelBlitzBooking: (blitzId: string) => Promise<boolean>;
   createNewBlitz: (blitz: Omit<BlitzEvent, 'id' | 'currentSales' | 'installedCount' | 'bookedCount' | 'bookedUserIds'>) => Promise<boolean>;
@@ -379,10 +383,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivePushToast(null);
   };
 
-  // Add Sale Order
-  const addSaleOrder = async (orderData: Omit<SaleOrder, 'id' | 'orderNumber' | 'createdAt'>): Promise<SaleOrder> => {
+  const addSaleOrder = async (orderData: Omit<SaleOrder, 'id' | 'orderNumber' | 'createdAt'> & { orderNumber?: string }): Promise<SaleOrder> => {
     const newId = `sale_${Date.now()}`;
-    const orderNumber = `FB-${Math.floor(10000 + Math.random() * 90000)}`;
+    const orderNumber = orderData.orderNumber || orderData.confirmationCode || `FB-${Math.floor(10000 + Math.random() * 90000)}`;
     const createdAt = new Date().toISOString();
 
     const newSale: SaleOrder = {
@@ -390,6 +393,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: newId,
       orderNumber,
       createdAt,
+    };
+
+    // Auto-generate customer SMS schedule (1 day prior, day of install, 1 week after)
+    const defaultSms = generateDefaultSmsMessages(newSale);
+    newSale.smsMessages = orderData.smsMessages || defaultSms;
+    newSale.customerSmsConfig = orderData.customerSmsConfig || {
+      autoSmsEnabled: true,
+      preInstallEnabled: true,
+      dayOfInstallEnabled: true,
+      postInstallEnabled: true,
+      messages: newSale.smsMessages,
     };
 
     setSales((prev) => [newSale, ...prev]);
@@ -480,6 +494,168 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Firestore deleteDoc notice', e);
     }
     return true;
+  };
+
+  const updateOrderCustomerSms = async (
+    orderId: string,
+    config: CustomerSmsConfig,
+    messages: CustomerSmsMessage[]
+  ): Promise<boolean> => {
+    setSales((prev) =>
+      prev.map((order) => {
+        if (order.id === orderId) {
+          return {
+            ...order,
+            customerSmsConfig: config,
+            smsMessages: messages,
+          };
+        }
+        return order;
+      })
+    );
+
+    try {
+      const saleRef = doc(db, 'sales', orderId);
+      await updateDoc(saleRef, {
+        customerSmsConfig: config,
+        smsMessages: messages,
+      });
+    } catch (e) {
+      console.warn('Firestore updateDoc customerSms notice', e);
+    }
+
+    return true;
+  };
+
+  const sendCustomerSmsNow = async (orderId: string, messageId: string): Promise<boolean> => {
+    let customerName = '';
+    let customerPhone = '';
+    let msgTitle = '';
+    let msgText = '';
+
+    setSales((prev) =>
+      prev.map((order) => {
+        if (order.id === orderId) {
+          customerName = order.customerName;
+          customerPhone = order.customerPhone;
+          const currentMessages = order.smsMessages || generateDefaultSmsMessages(order);
+          const updatedMessages = currentMessages.map((m) => {
+            if (m.id === messageId) {
+              msgTitle = m.title;
+              msgText = m.messageText;
+              return {
+                ...m,
+                status: 'sent' as const,
+                sentAt: new Date().toISOString(),
+              };
+            }
+            return m;
+          });
+
+          return {
+            ...order,
+            smsMessages: updatedMessages,
+            customerSmsConfig: {
+              ...(order.customerSmsConfig || {
+                autoSmsEnabled: true,
+                preInstallEnabled: true,
+                dayOfInstallEnabled: true,
+                postInstallEnabled: true,
+              }),
+              messages: updatedMessages,
+              lastDispatchedAt: new Date().toISOString(),
+            },
+          };
+        }
+        return order;
+      })
+    );
+
+    const newNotif: BlitzNotification = {
+      id: `notif_${Date.now()}`,
+      title: `📲 Customer SMS Dispatched: ${msgTitle}`,
+      message: `Sent to ${customerName} (${customerPhone}): "${msgText.slice(0, 80)}..."`,
+      type: 'sale',
+      timestamp: new Date().toISOString(),
+      read: false,
+      linkTab: 'my-sales',
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    try {
+      const saleRef = doc(db, 'sales', orderId);
+      const targetOrder = sales.find((s) => s.id === orderId);
+      if (targetOrder) {
+        const currentMessages = targetOrder.smsMessages || generateDefaultSmsMessages(targetOrder);
+        const updatedMessages = currentMessages.map((m) =>
+          m.id === messageId ? { ...m, status: 'sent' as const, sentAt: new Date().toISOString() } : m
+        );
+        await updateDoc(saleRef, {
+          smsMessages: updatedMessages,
+          'customerSmsConfig.lastDispatchedAt': new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.warn('Firestore updateDoc SMS send fallback', e);
+    }
+
+    return true;
+  };
+
+  const triggerCustomerSmsBatchCheck = async (): Promise<{ sentCount: number; checkedOrders: number }> => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let sentCount = 0;
+    let checkedOrders = 0;
+
+    const updatedSales = sales.map((order) => {
+      if (!order.customerSmsConfig?.autoSmsEnabled) return order;
+      checkedOrders++;
+
+      const msgs = order.smsMessages || generateDefaultSmsMessages(order);
+      let orderHasNewSends = false;
+
+      const newMsgs = msgs.map((m) => {
+        if (m.enabled && m.status === 'scheduled' && m.scheduledForDate <= todayStr) {
+          sentCount++;
+          orderHasNewSends = true;
+          return {
+            ...m,
+            status: 'sent' as const,
+            sentAt: new Date().toISOString(),
+          };
+        }
+        return m;
+      });
+
+      if (orderHasNewSends) {
+        return {
+          ...order,
+          smsMessages: newMsgs,
+          customerSmsConfig: {
+            ...order.customerSmsConfig,
+            messages: newMsgs,
+            lastDispatchedAt: new Date().toISOString(),
+          },
+        };
+      }
+      return order;
+    });
+
+    if (sentCount > 0) {
+      setSales(updatedSales);
+      const notif: BlitzNotification = {
+        id: `notif_${Date.now()}`,
+        title: `⚡ Batch Customer SMS Engine: ${sentCount} Dispatched`,
+        message: `Successfully processed ${sentCount} automated install reminders and checkups across ${checkedOrders} active customer orders!`,
+        type: 'sale',
+        timestamp: new Date().toISOString(),
+        read: false,
+        linkTab: 'my-sales',
+      };
+      setNotifications((prev) => [notif, ...prev]);
+    }
+
+    return { sentCount, checkedOrders };
   };
 
   const bookBlitz = async (
@@ -1237,6 +1413,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSaleOrder,
         updateSaleStatus,
         deleteSaleOrder,
+        updateOrderCustomerSms,
+        sendCustomerSmsNow,
+        triggerCustomerSmsBatchCheck,
         bookBlitz,
         cancelBlitzBooking,
         createNewBlitz,

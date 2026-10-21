@@ -32,7 +32,17 @@ interface BlitzBookingViewProps {
 }
 
 export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessagingForBlitz }) => {
-  const { currentUser, isAdmin, isManager, isRepresentative, canManageTeam, canLaunchStateBlitz, allUsers } = useAuth();
+  const {
+    currentUser,
+    isAdmin,
+    isManager,
+    isRepresentative,
+    canManageTeam,
+    canLaunchStateBlitz,
+    allUsers,
+    isButtonVisible,
+    isButtonDisabled,
+  } = useAuth();
   const {
     blitzes,
     bookBlitz,
@@ -213,10 +223,16 @@ export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessag
           </div>
 
           {/* Action Button for Leadership (Regional Director & Blitz Manager) */}
-          {canLaunchStateBlitz && (
+          {canLaunchStateBlitz && isButtonVisible('launch_blitz') && (
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 w-full sm:w-auto shrink-0 whitespace-nowrap"
+              onClick={isButtonDisabled('launch_blitz') ? undefined : () => setShowCreateModal(true)}
+              disabled={isButtonDisabled('launch_blitz')}
+              className={`px-4 py-2.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-2 shadow-lg transition-all w-full sm:w-auto shrink-0 whitespace-nowrap ${
+                isButtonDisabled('launch_blitz')
+                  ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-emerald-500/20 hover:scale-105 cursor-pointer'
+              }`}
+              title={isButtonDisabled('launch_blitz') ? 'Blitz Launch disabled for this role by Administrator' : 'Launch New State Blitz Deployment'}
             >
               <PlusCircle className="w-4 h-4 stroke-[2.5px]" />
               <span>Launch State Blitz</span>

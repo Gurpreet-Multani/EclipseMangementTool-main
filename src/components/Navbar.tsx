@@ -40,7 +40,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCompletedCourses,
   onOpenApprovals,
 }) => {
-  const { currentUser, users, loginAs, logout, isAdmin, isManager, isRepresentative, pendingApprovalsCount } = useAuth();
+  const {
+    currentUser,
+    users,
+    loginAs,
+    logout,
+    isAdmin,
+    isManager,
+    isRepresentative,
+    pendingApprovalsCount,
+    isButtonVisible,
+    isButtonDisabled,
+    actualIsAdmin,
+    effectiveRole
+  } = useAuth();
   const { notifications, messages, markNotificationRead, clearAllNotifications, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -79,76 +92,108 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Action Icons & Persona Switcher */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 flex-wrap min-w-0">
           {/* RBAC Security Info Button */}
-          <button
-            onClick={onOpenRbacModal}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all text-xs"
-            title="Inspect Role-Based Access Control (RBAC) Permissions"
-          >
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden md:inline font-semibold">RBAC Access</span>
-            <span
-              className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
-                currentUser?.role?.includes('Regional Director') || isAdmin
-                  ? 'bg-rose-400/20 text-rose-300 border border-rose-400/30'
-                  : currentUser?.role?.includes('Blitz Manager')
-                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
-                  : currentUser?.role?.includes('Team Lead')
-                  ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
-                  : currentUser?.role?.includes('Corporate Trainer')
-                  ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                  : 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
-              }`}
-            >
-              {currentUser?.role}
-            </span>
-          </button>
-
-          {/* Role Management Button (Admin Only) */}
-          {isAdmin && (
+          {isButtonVisible('rbac_matrix') && (
             <button
-              onClick={onOpenRoleManagementModal}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-900/50 hover:bg-indigo-900 border border-indigo-700 text-indigo-300 hover:text-indigo-200 transition-all text-xs"
-              title="Create and manage custom roles"
+              onClick={isButtonDisabled('rbac_matrix') ? undefined : onOpenRbacModal}
+              disabled={isButtonDisabled('rbac_matrix')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all ${
+                isButtonDisabled('rbac_matrix')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title={isButtonDisabled('rbac_matrix') ? 'RBAC Access View disabled for this role by Administrator' : 'Inspect Role-Based Access Control (RBAC) Permissions'}
             >
-              <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden md:inline font-semibold">Role Manager</span>
+              <Shield className={`w-3.5 h-3.5 ${isButtonDisabled('rbac_matrix') ? 'text-slate-500' : 'text-emerald-400'}`} />
+              <span className="hidden md:inline font-semibold">RBAC Access</span>
+              <span
+                className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                  currentUser?.role?.includes('Regional Director') || isAdmin
+                    ? 'bg-rose-400/20 text-rose-300 border border-rose-400/30'
+                    : currentUser?.role?.includes('Blitz Manager')
+                    ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                    : currentUser?.role?.includes('Team Lead')
+                    ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
+                    : currentUser?.role?.includes('Corporate Trainer')
+                    ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                    : 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                }`}
+              >
+                {effectiveRole}
+              </span>
             </button>
           )}
 
-          {/* Quick Action on Web Layout */}
-          <button
-            onClick={onOpenNewSale}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-[1.02]"
-          >
-            <PlusCircle className="w-4 h-4 text-slate-950" />
-            <span>Log Fiber Sale</span>
-          </button>
+          {/* Role Management Button (Owner/Admin Controller) */}
+          {(isAdmin || actualIsAdmin) && isButtonVisible('role_manager') && (
+            <button
+              onClick={isButtonDisabled('role_manager') ? undefined : onOpenRoleManagementModal}
+              disabled={isButtonDisabled('role_manager')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all ${
+                isButtonDisabled('role_manager')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-indigo-900/50 hover:bg-indigo-900 border-indigo-700 text-indigo-300 hover:text-indigo-200'
+              }`}
+              title={isButtonDisabled('role_manager') ? 'Role Manager disabled for this role by Administrator' : 'Master Control Room: Create & customize roles, disable/hide buttons'}
+            >
+              <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden md:inline font-semibold">Master Controls</span>
+            </button>
+          )}
+
+          {/* Quick Action: Log Fiber Sale on Web Layout */}
+          {isButtonVisible('log_sale') && (
+            <button
+              onClick={isButtonDisabled('log_sale') ? undefined : onOpenNewSale}
+              disabled={isButtonDisabled('log_sale')}
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
+                isButtonDisabled('log_sale')
+                  ? 'bg-slate-800 border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20 hover:scale-[1.02]'
+              }`}
+              title={isButtonDisabled('log_sale') ? 'Log Sale action disabled for this role by Administrator' : 'Log New Fiber Sale Order'}
+            >
+              {isButtonDisabled('log_sale') ? <Lock className="w-3.5 h-3.5 text-slate-500" /> : <PlusCircle className="w-4 h-4 text-slate-950" />}
+              <span>Log Fiber Sale</span>
+            </button>
+          )}
 
           {/* Internal Messaging / Dispatch Center */}
-          <button
-            onClick={onOpenMessaging}
-            className="relative p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors"
-            title="Open Blitz Communications & Direct Messages"
-            aria-label="Internal Messages"
-          >
-            <MessageSquare className="w-4 h-4 text-emerald-400" />
-            {unreadMessagesCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950">
-                {unreadMessagesCount}
-              </span>
-            )}
-          </button>
+          {isButtonVisible('messaging') && (
+            <button
+              onClick={isButtonDisabled('messaging') ? undefined : onOpenMessaging}
+              disabled={isButtonDisabled('messaging')}
+              className={`relative p-2 rounded-xl border transition-colors ${
+                isButtonDisabled('messaging')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title={isButtonDisabled('messaging') ? 'Messaging disabled for this role by Administrator' : 'Open Blitz Communications & Direct Messages'}
+              aria-label="Internal Messages"
+            >
+              <MessageSquare className={`w-4 h-4 ${isButtonDisabled('messaging') ? 'text-slate-500' : 'text-emerald-400'}`} />
+              {unreadMessagesCount > 0 && !isButtonDisabled('messaging') && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Pending Course Reviews Button */}
-          {(isAdmin || isManager) && (
+          {(isAdmin || isManager) && isButtonVisible('course_reviews') && (
             <button
-              onClick={onOpenPendingReviews}
-              className="relative p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors"
-              title="Review pending course submissions"
+              onClick={isButtonDisabled('course_reviews') ? undefined : onOpenPendingReviews}
+              disabled={isButtonDisabled('course_reviews')}
+              className={`relative p-2 rounded-xl border transition-colors ${
+                isButtonDisabled('course_reviews')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title={isButtonDisabled('course_reviews') ? 'Course reviews disabled for this role by Administrator' : 'Review pending course submissions'}
               aria-label="Pending Reviews"
             >
-              <Clock className="w-4 h-4 text-amber-400" />
-              {pendingReviewsCount > 0 && (
+              <Clock className={`w-4 h-4 ${isButtonDisabled('course_reviews') ? 'text-slate-500' : 'text-amber-400'}`} />
+              {pendingReviewsCount > 0 && !isButtonDisabled('course_reviews') && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
                   {pendingReviewsCount}
                 </span>
@@ -157,27 +202,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Completed Courses Button */}
-          {(isAdmin || isManager) && (
+          {(isAdmin || isManager) && isButtonVisible('completed_courses') && (
             <button
-              onClick={onOpenCompletedCourses}
-              className="relative p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors"
-              title="View completed coursework and add comments"
+              onClick={isButtonDisabled('completed_courses') ? undefined : onOpenCompletedCourses}
+              disabled={isButtonDisabled('completed_courses')}
+              className={`relative p-2 rounded-xl border transition-colors ${
+                isButtonDisabled('completed_courses')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title={isButtonDisabled('completed_courses') ? 'Completed coursework view disabled for this role by Administrator' : 'View completed coursework and add comments'}
               aria-label="Completed Coursework"
             >
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
+              <CheckCircle className={`w-4 h-4 ${isButtonDisabled('completed_courses') ? 'text-slate-500' : 'text-emerald-400'}`} />
             </button>
           )}
 
           {/* Account Approvals Button for Admin */}
-          {isAdmin && (
+          {(isAdmin || actualIsAdmin) && isButtonVisible('account_approvals') && (
             <button
-              onClick={onOpenApprovals}
-              className="relative p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-colors"
-              title="Manage Account Approvals & Google Whitelist"
+              onClick={isButtonDisabled('account_approvals') ? undefined : onOpenApprovals}
+              disabled={isButtonDisabled('account_approvals')}
+              className={`relative p-2 rounded-xl border transition-colors ${
+                isButtonDisabled('account_approvals')
+                  ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-amber-500/30 text-amber-300 hover:text-amber-200'
+              }`}
+              title={isButtonDisabled('account_approvals') ? 'Account approvals disabled for this role by Administrator' : 'Manage Account Approvals & Google Whitelist'}
               aria-label="Account Approvals"
             >
-              <UserCheck className="w-4 h-4 text-amber-400" />
-              {pendingApprovalsCount > 0 && (
+              <UserCheck className={`w-4 h-4 ${isButtonDisabled('account_approvals') ? 'text-slate-500' : 'text-amber-400'}`} />
+              {pendingApprovalsCount > 0 && !isButtonDisabled('account_approvals') && (
                 <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
                   {pendingApprovalsCount}
                 </span>

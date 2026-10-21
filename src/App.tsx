@@ -20,18 +20,25 @@ import { LoginView } from './components/LoginView';
 import { PendingApprovalView } from './components/PendingApprovalView';
 import { RejectedAccessView } from './components/RejectedAccessView';
 import { AccessApprovalsModal } from './components/AccessApprovalsModal';
+import { AdminPreviewBanner } from './components/AdminPreviewBanner';
 
 const MainAppContent: React.FC = () => {
   const { currentUser, authLoading, customRoles, createRole, updateRole, deleteRole, logout, refreshCurrentUserProfile } = useAuth();
   const { courses, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [currentTab, setCurrentTab] = useState<string>('work');
   const [showNewSaleModal, setShowNewSaleModal] = useState<boolean>(false);
+  const [newSaleInitialMode, setNewSaleInitialMode] = useState<'manual' | 'scan'>('manual');
   const [showBadgeModal, setShowBadgeModal] = useState<boolean>(false);
   const [showRbacModal, setShowRbacModal] = useState<boolean>(false);
   const [showRoleManagementModal, setShowRoleManagementModal] = useState<boolean>(false);
   const [showPendingReviewsModal, setShowPendingReviewsModal] = useState<boolean>(false);
   const [showCompletedCoursesModal, setShowCompletedCoursesModal] = useState<boolean>(false);
   const [showApprovalsModal, setShowApprovalsModal] = useState<boolean>(false);
+
+  const handleOpenNewSale = (mode: 'manual' | 'scan' = 'manual') => {
+    setNewSaleInitialMode(mode);
+    setShowNewSaleModal(true);
+  };
 
   // Internal Messaging & Push Dispatch State
   const [showMessagingModal, setShowMessagingModal] = useState<boolean>(false);
@@ -92,6 +99,9 @@ const MainAppContent: React.FC = () => {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.02),rgba(148,163,184,0))]"></div>
         </div>
         <div className="relative z-10 flex-1 flex flex-col">
+        {/* Live Admin Role Simulator Banner */}
+        <AdminPreviewBanner />
+
         {/* iOS Native Push Notification Banner */}
         <PushNotificationToast
           onOpenMessage={(msgId) => handleOpenMessaging({ messageId: msgId })}
@@ -99,7 +109,7 @@ const MainAppContent: React.FC = () => {
 
         {/* Sticky Dynamic Navbar */}
         <Navbar
-          onOpenNewSale={() => setShowNewSaleModal(true)}
+          onOpenNewSale={() => handleOpenNewSale('manual')}
           onNavigateTab={(tab) => setCurrentTab(tab)}
           onOpenRbacModal={() => setShowRbacModal(true)}
           onOpenRoleManagementModal={() => setShowRoleManagementModal(true)}
@@ -113,7 +123,7 @@ const MainAppContent: React.FC = () => {
         <main className="flex-1 w-full overflow-y-auto">
           {currentTab === 'work' && (
             <WorkView
-              onOpenNewSale={() => setShowNewSaleModal(true)}
+              onOpenNewSale={(mode) => handleOpenNewSale(mode || 'manual')}
               onOpenDirectMessage={(repId) => handleOpenMessaging({ recipientId: repId })}
             />
           )}
@@ -132,12 +142,15 @@ const MainAppContent: React.FC = () => {
         <TabBar
           currentTab={currentTab}
           onSelectTab={(tab) => setCurrentTab(tab)}
-          onOpenNewSale={() => setShowNewSaleModal(true)}
+          onOpenNewSale={() => handleOpenNewSale('manual')}
         />
 
         {/* New Sale Modal */}
         {showNewSaleModal && (
-          <NewSaleModal onClose={() => setShowNewSaleModal(false)} />
+          <NewSaleModal
+            onClose={() => setShowNewSaleModal(false)}
+            initialMode={newSaleInitialMode}
+          />
         )}
 
         {/* Official Security Badge Modal */}

@@ -24,7 +24,17 @@ import {
   Scale,
   MessageSquare,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
+  MapPin,
+  Compass,
+  ShieldCheck,
+  Target,
+  HeartPulse,
+  Camera,
+  FileImage,
+  Eye,
+  Smartphone,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -41,15 +51,37 @@ import confetti from 'canvas-confetti';
 import { US_STATES } from '../lib/states';
 import { WorkExportModal } from './WorkExportModal';
 import { downloadCsv } from '../lib/csvExport';
+import { CustomerSmsModal } from './CustomerSmsModal';
 
 interface WorkViewProps {
-  onOpenNewSale: () => void;
+  onOpenNewSale: (mode?: 'manual' | 'scan') => void;
   onOpenDirectMessage?: (repId: string) => void;
 }
 
 export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectMessage }) => {
-  const { currentUser, allUsers, isAdmin, isManager, isRepresentative, canManageTeam } = useAuth();
-  const { sales, updateSaleStatus } = useData();
+  const {
+    currentUser,
+    allUsers,
+    isAdmin,
+    isRegionalDirector,
+    isBlitzManager,
+    isTeamLead,
+    isCorporateTrainer,
+    isFieldSalesRep,
+    isManager,
+    isRepresentative,
+    canManageTeam,
+    canManageAllUsers,
+    canManageAgencyCashFlow,
+    isPanelVisible,
+    isButtonVisible,
+    isButtonDisabled,
+    effectiveRole,
+    isSimulating,
+    actualIsAdmin,
+    setSimulatedRole,
+  } = useAuth();
+  const { sales, updateSaleStatus, triggerCustomerSmsBatchCheck } = useData();
 
   const today = new Date();
   const currentMonthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
@@ -79,6 +111,15 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
   // Admin CSV Performance Export Modal state
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
+
+  // Attached Screenshot Receipt Lightbox Modal state
+  const [viewingReceiptUrl, setViewingReceiptUrl] = useState<string | null>(null);
+  const [viewingReceiptTitle, setViewingReceiptTitle] = useState<string>('');
+
+  // Customer SMS Automation Modal state
+  const [smsSelectedOrder, setSmsSelectedOrder] = useState<SaleOrder | null>(null);
+  const [smsBatchRunning, setSmsBatchRunning] = useState<boolean>(false);
+  const [smsBatchResult, setSmsBatchResult] = useState<string | null>(null);
 
   const fieldFocusSnapshot = useMemo(() => {
     const now = new Date();
@@ -475,33 +516,62 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
   return (
     <div className="p-2.5 sm:p-3 max-w-7xl mx-auto space-y-3 pb-32 sm:pb-28 lg:pb-20">
-      {/* Top Welcome & Sub-Tab Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(12,27,24,0.72),rgba(15,23,42,0.96))] p-3 sm:p-3.5 rounded-2xl border border-emerald-500/15 backdrop-blur-md shadow-[0_14px_30px_rgba(2,6,23,0.22)] ring-1 ring-emerald-500/10">
+      {/* Top Welcome & Sub-Tab Switcher - Role-Tailored */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(12,27,24,0.72),rgba(15,23,42,0.96))] p-3 sm:p-4 rounded-2xl border border-emerald-500/15 backdrop-blur-md shadow-[0_14px_30px_rgba(2,6,23,0.22)] ring-1 ring-emerald-500/10">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              isAdmin ? 'bg-rose-400 animate-pulse' :
+              isRegionalDirector ? 'bg-amber-400' :
+              isBlitzManager ? 'bg-indigo-400' :
+              isTeamLead ? 'bg-purple-400' :
+              isCorporateTrainer ? 'bg-teal-400' : 'bg-emerald-400'
+            }`}></span>
             <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Field Execution Station
+              {isAdmin ? 'Owner & Executive Command' :
+               isRegionalDirector ? 'Regional Directory Command' :
+               isBlitzManager ? 'Blitz Operations & Dispatch Command' :
+               isTeamLead ? 'Front-Line Squad Operations' :
+               isCorporateTrainer ? 'Training Academy Command' :
+               `${effectiveRole.toUpperCase()} Execution Station`}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+              Role: {effectiveRole}
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">
-            My Work & Performance Metrics
+            {isAdmin ? 'National Executive Revenue & Governance Center' :
+             isRegionalDirector ? 'Multi-State Regional Territory HQ' :
+             isBlitzManager ? 'State Blitz Operations & Field Command' :
+             isTeamLead ? 'Squad Leader Command Post' :
+             isCorporateTrainer ? 'Field Sales Education & Certification Center' :
+             'Personal Production & Daily Hustle'}
           </h1>
           <p className="text-[11px] text-slate-400 mt-1">
-            Real-time sync across web and mobile. Track installs, verify dispatch, and view leaderboards.
+            {isAdmin ? 'Company-wide revenue telemetry, carrier agreements, cash flow, and team governance.' :
+             isRegionalDirector ? 'Supervising Blitz Operations Hubs, regional carrier quotas, and territory growth.' :
+             isBlitzManager ? 'Daily rep roll-call, turf cut-ins, hotel hub coordination, and target install velocity.' :
+             isTeamLead ? 'Guiding direct squad of 2-4 reps, door pacing, daily installs, and pitch coaching.' :
+             isCorporateTrainer ? 'Monitoring rep coursework, grading pitch submissions, and evaluating field readiness.' :
+             'Today’s installs, personal commissions earned, scheduled customer drops, and active blitz countdown.'}
           </p>
         </div>
 
         {/* Sub-Tab Selector: My Stats vs My Sales & Admin Export Action */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-          {isAdmin && (
+          {isButtonVisible('export_data') && (
             <button
               type="button"
-              onClick={() => setShowExportModal(true)}
-              className="px-3 py-1.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] sm:text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
-              title="Export Performance and Sales Records to CSV"
+              onClick={isButtonDisabled('export_data') ? undefined : () => setShowExportModal(true)}
+              disabled={isButtonDisabled('export_data')}
+              className={`px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[10px] sm:text-xs flex items-center gap-1.5 transition-all shadow-md ${
+                isButtonDisabled('export_data')
+                  ? 'bg-slate-900/40 border border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-300 shadow-emerald-500/10 cursor-pointer'
+              }`}
+              title={isButtonDisabled('export_data') ? 'Export feature disabled for this role by Administrator' : 'Export Performance and Sales Records to CSV'}
             >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <Download className={`w-3.5 h-3.5 ${isButtonDisabled('export_data') ? 'text-slate-500' : 'text-emerald-400'}`} />
               <span>Export CSV</span>
             </button>
           )}
@@ -516,7 +586,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>My Stats & Team</span>
+              <span>{isAdmin || isManager ? 'Agency Stats & Team' : 'My Stats & Pacing'}</span>
             </button>
             <button
               onClick={() => setSubTab('sales')}
@@ -527,11 +597,161 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               }`}
             >
               <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>My Sales & Orders</span>
+              <span>{isAdmin || isManager ? 'All Sales Orders' : 'My Sales & Orders'}</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Role-Specific Mission Cards */}
+      {isAdmin && (
+        <div className="p-3.5 bg-gradient-to-r from-slate-900/90 via-indigo-950/40 to-slate-900/90 border border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white block">Executive Command: Full Agency Purview</span>
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-mono">
+                  Master Overrides Active
+                </span>
+              </div>
+              <p className="text-[11px] text-indigo-200/80">
+                You have master governance across all roles, pay rates, button visibility toggles, carrier SLAs, and cash flow telemetry.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-[11px] font-mono text-indigo-300 bg-indigo-950/80 px-2.5 py-1 rounded-xl border border-indigo-500/30">
+              {allUsers.length} Reps Enrolled
+            </span>
+            <span className="text-[11px] font-mono text-emerald-300 bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-500/30">
+              {sales.length} Lifetime Orders
+            </span>
+          </div>
+        </div>
+      )}
+
+      {isRegionalDirector && !isAdmin && (
+        <div className="p-3.5 bg-gradient-to-r from-slate-900/90 via-rose-950/40 to-slate-900/90 border border-rose-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0">
+              <Compass className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white block">Territory Operations: Multi-State Deployment</span>
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono">
+                  Regional Director
+                </span>
+              </div>
+              <p className="text-[11px] text-rose-200/80">
+                Overseeing multi-carrier quotas, state blitz clusters, hotel staging hubs, and cross-state margin benchmarks.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-[11px] font-mono text-rose-300 bg-rose-950/80 px-2.5 py-1 rounded-xl border border-rose-500/30">
+              Target SLA: 92% Installs
+            </span>
+          </div>
+        </div>
+      )}
+
+      {isBlitzManager && !isAdmin && (
+        <div className="p-3.5 bg-gradient-to-r from-slate-900/90 via-amber-950/40 to-slate-900/90 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white block">State Blitz Field Command: Ground Logistics</span>
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">
+                  Active Dispatch
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-200/80">
+                Hotel staging muster points, morning territory check-ins, turf cut grids, and daily door run velocity.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-[11px] font-mono text-amber-300 bg-amber-950/80 px-2.5 py-1 rounded-xl border border-amber-500/30">
+              Muster: 8:00 AM Daily
+            </span>
+          </div>
+        </div>
+      )}
+
+      {isTeamLead && !isAdmin && (
+        <div className="p-3.5 bg-purple-950/25 border border-purple-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-extrabold text-white block">Active Squad Purview: 2-4 Field Specialists</span>
+              <p className="text-[11px] text-purple-200/80">
+                Ensure all squad reps have morning turf routes loaded and direct dial support ready.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onOpenDirectMessage ? onOpenDirectMessage('squad') : undefined}
+            className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Squad Dispatch Chat</span>
+          </button>
+        </div>
+      )}
+
+      {isCorporateTrainer && !isAdmin && (
+        <div className="p-3.5 bg-teal-950/25 border border-teal-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-extrabold text-white block">Training Academy Readiness Portal</span>
+              <p className="text-[11px] text-teal-200/80">
+                Review representative exam answers, pitch submissions, and certify new blitz specialists.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono text-teal-300 bg-teal-950/60 px-3 py-1 rounded-xl border border-teal-500/30">
+            Academy Sync Active
+          </span>
+        </div>
+      )}
+
+      {isFieldSalesRep && !isAdmin && !isTeamLead && !isCorporateTrainer && (
+        <div className="p-3.5 bg-gradient-to-r from-slate-900/90 via-cyan-950/30 to-slate-900/90 border border-cyan-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white block">Field Production Briefing: Personal Pacing</span>
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                  Rep Dashboard
+                </span>
+              </div>
+              <p className="text-[11px] text-cyan-200/80">
+                Pacing benchmark: Target 60-80 doors/day. Pitch the 1-Gig/2-Gig fiber speed upgrades for maximum commission per install.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-[11px] font-mono text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-xl border border-cyan-500/30">
+              Door Target: 75/day
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* SUB-TAB 1: MY STATS & LEADERBOARD                       */}
@@ -624,7 +844,8 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
           </div>
 
           {/* TEAM VS. COMPANY BENCHMARK COMPARATIVE BAR CHART (RECHARTS) */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl">
+          {isPanelVisible('squad_pacing') && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl">
             {/* Header & Metric Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -801,11 +1022,13 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               </div>
             </div>
           </div>
+          )}
 
           {/* Leaderboard & Notifications Tabs Split */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Leaderboard Column (2 cols wide) */}
-            <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 sm:p-4 space-y-3">
+            {isPanelVisible('leaderboard') && (
+              <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1040,6 +1263,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 </table>
               </div>
             </div>
+            )}
 
             {/* Field Focus Panel */}
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 sm:p-4 space-y-3 flex flex-col">
@@ -1093,7 +1317,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
               <div className="pt-2 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
-                  onClick={onOpenNewSale}
+                  onClick={() => onOpenNewSale('manual')}
                   className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition-transform active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[3px]" />
@@ -1164,14 +1388,55 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 />
               </div>
 
-              {/* Log Sale Button */}
-              <button
-                onClick={onOpenNewSale}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 shrink-0"
-              >
-                <Plus className="w-4 h-4 stroke-[3px]" />
-                <span>Add Sale</span>
-              </button>
+              {/* Scan Screenshot, Add Sale & SMS Dispatch Engine Action Buttons */}
+              {isButtonVisible('log_sale') && (
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setSmsBatchRunning(true);
+                      const result = await triggerCustomerSmsBatchCheck();
+                      setSmsBatchRunning(false);
+                      setSmsBatchResult(`SMS Engine: Evaluated ${result.checkedOrders} customer orders • ${result.sentCount} automated messages dispatched!`);
+                      setTimeout(() => setSmsBatchResult(null), 4000);
+                    }}
+                    disabled={smsBatchRunning}
+                    className="px-3 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md border bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/30 hover:border-cyan-400 cursor-pointer transition-colors"
+                    title="Scan all customer install dates and trigger any due pre-install, day-of, or 1-week SMS messages"
+                  >
+                    <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{smsBatchRunning ? 'Checking SMS...' : 'Run SMS Engine'}</span>
+                  </button>
+
+                  <button
+                    onClick={isButtonDisabled('log_sale') ? undefined : () => onOpenNewSale('scan')}
+                    disabled={isButtonDisabled('log_sale')}
+                    className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md border transition-all ${
+                      isButtonDisabled('log_sale')
+                        ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed opacity-60'
+                        : 'bg-slate-900 hover:bg-slate-800 text-emerald-300 border-emerald-500/40 shadow-emerald-500/10 hover:border-emerald-500 cursor-pointer'
+                    }`}
+                    title={isButtonDisabled('log_sale') ? 'Sale entry disabled for this role by Administrator' : 'Upload carrier confirmation screenshot & instant AI autofill'}
+                  >
+                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>📸 Scan Screenshot</span>
+                  </button>
+
+                  <button
+                    onClick={isButtonDisabled('log_sale') ? undefined : () => onOpenNewSale('manual')}
+                    disabled={isButtonDisabled('log_sale')}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md ${
+                      isButtonDisabled('log_sale')
+                        ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-emerald-500/20 cursor-pointer'
+                    }`}
+                    title={isButtonDisabled('log_sale') ? 'Sale entry disabled for this role by Administrator' : 'Log New Fiber Sale manually'}
+                  >
+                    {isButtonDisabled('log_sale') ? <Lock className="w-4 h-4 text-slate-500" /> : <Plus className="w-4 h-4 stroke-[3px]" />}
+                    <span>Add Sale</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Filter Dropdowns Grid */}
@@ -1267,7 +1532,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 Try switching the rep or status filter, or tap "Add Sale" to record a new fiber order on the turf.
               </p>
               <button
-                onClick={onOpenNewSale}
+                onClick={() => onOpenNewSale('manual')}
                 className="mt-2 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold"
               >
                 Log New Order
@@ -1289,13 +1554,64 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                     {/* Left: Customer & Address Info */}
                     <div className="space-y-1.5 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-emerald-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">
-                          {order.orderNumber}
-                        </span>
-                        <h3 className="text-sm sm:text-base font-black text-white">
+                        <button
+                          type="button"
+                          onClick={() => setSmsSelectedOrder(order)}
+                          className="font-mono text-xs font-bold text-emerald-400 bg-cyan-950/50 hover:bg-cyan-900/60 px-2 py-0.5 rounded border border-cyan-800/40 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Click to view & configure automated customer SMS reminders"
+                        >
+                          <Smartphone className="w-3 h-3 text-emerald-400" />
+                          <span>{order.orderNumber}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSmsSelectedOrder(order)}
+                          className="text-sm sm:text-base font-black text-white hover:text-emerald-300 transition-colors text-left cursor-pointer"
+                          title="Click customer to open Automated SMS sequence"
+                        >
                           {order.customerName}
-                        </h3>
+                        </button>
                         <span className="text-xs text-slate-400">• {order.customerPhone}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSmsSelectedOrder(order)}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer transition-colors ${
+                            order.customerSmsConfig?.autoSmsEnabled !== false
+                              ? 'bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                          title="Automated customer messages: 1-day ahead, install day, 1-week checkup"
+                        >
+                          <Smartphone className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>{order.customerSmsConfig?.autoSmsEnabled !== false ? 'SMS Sequence Active' : 'SMS Paused'}</span>
+                          {order.customerSmsConfig?.autoSmsEnabled !== false && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          )}
+                        </button>
+                        {order.detectedCrm && (
+                          <span className="text-[10px] font-bold bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            {order.detectedCrm}
+                          </span>
+                        )}
+                        {typeof order.monthlyPrice === 'number' && order.monthlyPrice > 0 && (
+                          <span className="text-[10px] font-mono font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
+                            ${order.monthlyPrice}/mo
+                          </span>
+                        )}
+                        {order.screenshotPreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingReceiptUrl(order.screenshotPreviewUrl || null);
+                              setViewingReceiptTitle(`Confirmation Receipt: ${order.customerName} (${order.orderNumber})`);
+                            }}
+                            className="text-[10px] font-bold bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-2.5 h-2.5" />
+                            <span>View Screenshot</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1363,13 +1679,28 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                         </span>
                       </div>
 
-                      {/* Quick Status Action Button */}
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition-colors"
-                      >
-                        Update Status
-                      </button>
+                      {/* Customer Actions */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSmsSelectedOrder(order)}
+                          className="px-2.5 py-1 text-xs rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 hover:text-white font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          title="Configure automated SMS: 1 day before install, install day, 1 week after"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Automated SMS</span>
+                          {order.customerSmsConfig?.autoSmsEnabled !== false && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition-colors cursor-pointer"
+                        >
+                          Update Status
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1429,12 +1760,90 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  const order = selectedOrder;
+                  setSelectedOrder(null);
+                  setSmsSelectedOrder(order);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Open Automated SMS</span>
+              </button>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer SMS Automation Modal */}
+      {smsSelectedOrder && (
+        <CustomerSmsModal
+          order={smsSelectedOrder}
+          onClose={() => setSmsSelectedOrder(null)}
+        />
+      )}
+
+      {/* Batch SMS Toast Feedback */}
+      {smsBatchResult && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-950 border border-cyan-500/50 text-cyan-200 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-3">
+          <Smartphone className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>{smsBatchResult}</span>
+        </div>
+      )}
+
+      {/* Attached Confirmation Screenshot Lightbox Modal */}
+      {viewingReceiptUrl && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 max-w-2xl w-full space-y-3 shadow-2xl relative">
+            <button
+              onClick={() => {
+                setViewingReceiptUrl(null);
+                setViewingReceiptTitle('');
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/80 hover:bg-slate-800"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                Sale Verification Artifact
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                {viewingReceiptTitle || 'Carrier Confirmation Screenshot'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                Uploaded by field representative upon order booking.
+              </p>
+            </div>
+
+            <div className="max-h-[65vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-2 flex items-center justify-center">
+              <img
+                src={viewingReceiptUrl}
+                alt="Carrier Confirmation Order Screenshot"
+                className="max-w-full h-auto object-contain rounded-xl shadow-lg"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewingReceiptUrl(null);
+                  setViewingReceiptTitle('');
+                }}
+                className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold"
+              >
+                Done
               </button>
             </div>
           </div>

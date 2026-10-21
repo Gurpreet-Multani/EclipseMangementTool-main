@@ -1,7 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserProfile, UserRole, RolePermissions, CustomRole } from '../types';
+import {
+  UserProfile,
+  UserRole,
+  RolePermissions,
+  CustomRole,
+  RoleUiConfig,
+  ButtonActionId,
+  ButtonVisibilityState,
+  AppTabId,
+  PanelSectionId,
+} from '../types';
 import { INITIAL_USERS } from '../lib/seedData';
 import { auth, db } from '../lib/firebase';
+import { DEFAULT_ROLE_UI_CONFIGS, getDefaultUiConfigForRole } from '../lib/roleUiDefaults';
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -55,6 +66,24 @@ interface AuthContextType {
   deleteRole: (roleId: string) => void;
   getRole: (roleId: string) => CustomRole | undefined;
   assignRoleToUser: (userId: string, roleId: string) => void;
+  // UI & Visibility Control per Role
+  roleUiConfigs: Record<string, RoleUiConfig>;
+  updateRoleUiConfig: (roleName: string, updates: Partial<RoleUiConfig>) => void;
+  setButtonStateForRole: (roleName: string, buttonId: ButtonActionId, state: ButtonVisibilityState) => void;
+  toggleTabForRole: (roleName: string, tabId: AppTabId, visible: boolean) => void;
+  togglePanelForRole: (roleName: string, panelId: PanelSectionId, hidden: boolean) => void;
+  resetRoleUiConfig: (roleName: string) => void;
+  getButtonState: (buttonId: ButtonActionId) => ButtonVisibilityState;
+  isButtonVisible: (buttonId: ButtonActionId) => boolean;
+  isButtonDisabled: (buttonId: ButtonActionId) => boolean;
+  isTabVisible: (tabId: AppTabId) => boolean;
+  isPanelVisible: (panelId: PanelSectionId) => boolean;
+  // Live Role Preview / Simulation
+  simulatedRole: UserRole | null;
+  setSimulatedRole: (role: UserRole | null) => void;
+  effectiveRole: UserRole;
+  isSimulating: boolean;
+  actualIsAdmin: boolean;
   // RBAC Flags & Helpers
   isAdmin: boolean;
   isRegionalDirector: boolean;
@@ -85,6 +114,7 @@ const LOCAL_STORAGE_USER_KEY = 'eclipse_current_user_id';
 const LOCAL_STORAGE_USERS_KEY = 'eclipse_users_cache';
 const LOCAL_STORAGE_ROLES_KEY = 'eclipse_custom_roles';
 const LOCAL_STORAGE_CREDENTIALS_KEY = 'eclipse_user_credentials';
+const LOCAL_STORAGE_UI_CONFIGS_KEY = 'eclipse_role_ui_configs';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authLoading, setAuthLoading] = useState<boolean>(true);
@@ -108,6 +138,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return [];
   });
+
+  const [roleUiConfigs, setRoleUiConfigs] = useState<Record<string, RoleUiConfig>>(() => {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_UI_CONFIGS_KEY);
+      if (cached) {
+        return { ...DEFAULT_ROLE_UI_CONFIGS, ...JSON.parse(cached) };
+      }
+    } catch (e) {
+      console.warn('Failed to parse cached UI configs', e);
+    }
+    return DEFAULT_ROLE_UI_CONFIGS;
+  });
+
+  const [simulatedRole, setSimulatedRole] = useState<UserRole | null>(null);
 
   const [credentialMap, setCredentialMap] = useState<Record<string, string>>(() => {
     try {
@@ -677,35 +721,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
   };
 
-  // RBAC Role normalization & 5-Tier Hierarchy
-  const currentRole = (currentUser?.role || 'Field Sales Representative').trim();
-  const currentRoleLower = currentRole.toLowerCase();
+  // Actual Admin Identity
+  const actualRole = (currentUser?.role || 'Field Sales Representative').trim();
+  const actualRoleLower = actualRole.toLowerCase();
+  const actualIsAdmin = actualRoleLower === 'admin' || actualRoleLower === 'owner';
 
-  // Primary Hierarchy Levels
-  const isAdmin = currentRoleLower === 'admin' || currentRoleLower === 'owner';
-  const isRegionalDirector = isAdmin || currentRoleLower.includes('regional director');
-  const isBlitzManager = isRegionalDirector || currentRoleLower.includes('blitz manager') || currentRoleLower === 'manager';
-  const isTeamLead = isBlitzManager || currentRoleLower.includes('team lead');
-  const isCorporateTrainer = isTeamLead || currentRoleLower.includes('corporate trainer') || currentRoleLower.includes('junior lead');
+  // Effective Role (supports live role preview / simulator by Admin)
+  const isSimulating = actualIsAdmin && simulatedRole !== null;
+  const effectiveRole = isSimulating ? simulatedRole! : actualRole;
+  const effectiveRoleLower = effectiveRole.toLowerCase();
+
+  // Find if effectiveRole is a custom role
+  const matchingCustomRole = customRoles.find((r) => r.name.toLowerCase() === effectiveRoleLower);
+
+  // Primary Hierarchy Levels based on effective role
+  const isAdmin = effectiveRoleLower === 'admin' || effectiveRoleLower === 'owner';
+  const isRegionalDirector = isAdmin || effectiveRoleLower.includes('regional director');
+  const isBlitzManager = isRegionalDirector || effectiveRoleLower.includes('blitz manager') || effectiveRoleLower === 'manager';
+  const isTeamLead = isBlitzManager || effectiveRoleLower.includes('team lead');
+  const isCorporateTrainer = isTeamLead || effectiveRoleLower.includes('corporate trainer') || effectiveRoleLower.includes('junior lead');
   const isFieldSalesRep = !isCorporateTrainer;
 
   // Legacy mappings for backwards compatibility
   const isManager = isBlitzManager;
   const isRepresentative = isFieldSalesRep || (!isAdmin && !isBlitzManager);
 
-  // Authority & Governance Permissions
-  const canManageAllUsers = isAdmin || isRegionalDirector;
-  const canManageTeam = isTeamLead; // Team leads manage squads of 2-4; Blitz managers manage squads of 4+
-  const canChangeUserRolesAndTitles = isAdmin || isRegionalDirector || isBlitzManager;
-  const canChangePayRates = isAdmin || isRegionalDirector;
-  const canUploadCoursework = isAdmin || isRegionalDirector || isBlitzManager || isCorporateTrainer;
-  const canLaunchStateBlitz = isAdmin || isRegionalDirector || isBlitzManager;
-  const canCutTurf = isAdmin || isRegionalDirector || isBlitzManager;
-  const canManageLogisticsAndBadging = isAdmin || isRegionalDirector || isBlitzManager;
-  const canNegotiateMasterAgreements = isAdmin || isRegionalDirector;
-  const canManageAgencyCashFlow = isAdmin || isRegionalDirector;
-  const canCreateRoles = isAdmin;
-  const canEditPermissions = isAdmin;
+  // Authority & Governance Permissions (supports custom role overrides if present)
+  const canManageAllUsers = matchingCustomRole ? matchingCustomRole.permissions.canManageAllUsers : (isAdmin || isRegionalDirector);
+  const canManageTeam = matchingCustomRole ? matchingCustomRole.permissions.canManageTeam : isTeamLead;
+  const canChangeUserRolesAndTitles = matchingCustomRole ? matchingCustomRole.permissions.canChangeUserRolesAndTitles : (isAdmin || isRegionalDirector || isBlitzManager);
+  const canChangePayRates = matchingCustomRole ? matchingCustomRole.permissions.canChangePayRates : (isAdmin || isRegionalDirector);
+  const canUploadCoursework = matchingCustomRole ? matchingCustomRole.permissions.canUploadCoursework : (isAdmin || isRegionalDirector || isBlitzManager || isCorporateTrainer);
+  const canLaunchStateBlitz = matchingCustomRole ? matchingCustomRole.permissions.canLaunchStateBlitz : (isAdmin || isRegionalDirector || isBlitzManager);
+  const canCutTurf = matchingCustomRole ? (matchingCustomRole.permissions.canCutTurf ?? false) : (isAdmin || isRegionalDirector || isBlitzManager);
+  const canManageLogisticsAndBadging = matchingCustomRole ? (matchingCustomRole.permissions.canManageLogisticsAndBadging ?? false) : (isAdmin || isRegionalDirector || isBlitzManager);
+  const canNegotiateMasterAgreements = matchingCustomRole ? (matchingCustomRole.permissions.canNegotiateMasterAgreements ?? false) : (isAdmin || isRegionalDirector);
+  const canManageAgencyCashFlow = matchingCustomRole ? (matchingCustomRole.permissions.canManageAgencyCashFlow ?? false) : (isAdmin || isRegionalDirector);
+  const canCreateRoles = matchingCustomRole ? (matchingCustomRole.permissions.canCreateRoles ?? false) : isAdmin;
+  const canEditPermissions = matchingCustomRole ? (matchingCustomRole.permissions.canEditPermissions ?? false) : isAdmin;
 
   const permissions: RolePermissions = {
     canManageAllUsers,
@@ -714,17 +767,160 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canChangePayRates,
     canUploadCoursework,
     canLaunchStateBlitz,
-    canViewAllSales: isBlitzManager,
-    canViewTeamSales: isTeamLead,
-    canSubmitSales: true,
-    canAccessTraining: true,
-    canAccessProfile: true,
+    canViewAllSales: matchingCustomRole ? matchingCustomRole.permissions.canViewAllSales : isBlitzManager,
+    canViewTeamSales: matchingCustomRole ? matchingCustomRole.permissions.canViewTeamSales : isTeamLead,
+    canSubmitSales: matchingCustomRole ? matchingCustomRole.permissions.canSubmitSales : true,
+    canAccessTraining: matchingCustomRole ? matchingCustomRole.permissions.canAccessTraining : true,
+    canAccessProfile: matchingCustomRole ? matchingCustomRole.permissions.canAccessProfile : true,
     canCutTurf,
     canManageLogisticsAndBadging,
     canNegotiateMasterAgreements,
     canManageAgencyCashFlow,
     canCreateRoles,
     canEditPermissions,
+  };
+
+  // UI Control & Visibility System Functions
+  const getEffectiveUiConfig = (roleName: string): RoleUiConfig => {
+    const config = roleUiConfigs[roleName];
+    if (config) return config;
+    return getDefaultUiConfigForRole(roleName);
+  };
+
+  const getButtonState = (buttonId: ButtonActionId): ButtonVisibilityState => {
+    const config = getEffectiveUiConfig(effectiveRole);
+    return config.buttonStates?.[buttonId] ?? getDefaultUiConfigForRole(effectiveRole).buttonStates?.[buttonId] ?? 'enabled';
+  };
+
+  const isButtonVisible = (buttonId: ButtonActionId): boolean => {
+    return getButtonState(buttonId) !== 'hidden';
+  };
+
+  const isButtonDisabled = (buttonId: ButtonActionId): boolean => {
+    return getButtonState(buttonId) === 'disabled';
+  };
+
+  const isTabVisible = (tabId: AppTabId): boolean => {
+    const config = getEffectiveUiConfig(effectiveRole);
+    const visibleTabs = config.visibleTabs || getDefaultUiConfigForRole(effectiveRole).visibleTabs;
+    return visibleTabs.includes(tabId);
+  };
+
+  const isPanelVisible = (panelId: PanelSectionId): boolean => {
+    const config = getEffectiveUiConfig(effectiveRole);
+    const hiddenPanels = config.hiddenPanels || getDefaultUiConfigForRole(effectiveRole).hiddenPanels;
+    return !hiddenPanels.includes(panelId);
+  };
+
+  const updateRoleUiConfig = (roleName: string, updates: Partial<RoleUiConfig>) => {
+    if (!actualIsAdmin) {
+      alert('Only administrators and owners can modify role UI configurations.');
+      return;
+    }
+    setRoleUiConfigs((prev) => {
+      const existing = prev[roleName] || getDefaultUiConfigForRole(roleName);
+      const merged: RoleUiConfig = {
+        ...existing,
+        ...updates,
+        buttonStates: {
+          ...existing.buttonStates,
+          ...(updates.buttonStates || {}),
+        },
+      };
+      const next = { ...prev, [roleName]: merged };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_UI_CONFIGS_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save UI configs to local storage:', e);
+      }
+      return next;
+    });
+  };
+
+  const setButtonStateForRole = (roleName: string, buttonId: ButtonActionId, state: ButtonVisibilityState) => {
+    if (!actualIsAdmin) {
+      alert('Only administrators and owners can modify button permissions.');
+      return;
+    }
+    setRoleUiConfigs((prev) => {
+      const current = prev[roleName] || getDefaultUiConfigForRole(roleName);
+      const updated: RoleUiConfig = {
+        ...current,
+        buttonStates: {
+          ...current.buttonStates,
+          [buttonId]: state,
+        },
+      };
+      const next = { ...prev, [roleName]: updated };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_UI_CONFIGS_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save UI configs', e);
+      }
+      return next;
+    });
+  };
+
+  const toggleTabForRole = (roleName: string, tabId: AppTabId, visible: boolean) => {
+    if (!actualIsAdmin) {
+      alert('Only administrators can modify tab visibility.');
+      return;
+    }
+    setRoleUiConfigs((prev) => {
+      const current = prev[roleName] || getDefaultUiConfigForRole(roleName);
+      const curTabs = current.visibleTabs || ['work', 'blitz', 'training', 'profile'];
+      let nextTabs = visible ? [...curTabs, tabId] : curTabs.filter((t) => t !== tabId);
+      nextTabs = Array.from(new Set(nextTabs));
+      const updated: RoleUiConfig = {
+        ...current,
+        visibleTabs: nextTabs,
+      };
+      const next = { ...prev, [roleName]: updated };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_UI_CONFIGS_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save tab configs', e);
+      }
+      return next;
+    });
+  };
+
+  const togglePanelForRole = (roleName: string, panelId: PanelSectionId, hidden: boolean) => {
+    if (!actualIsAdmin) {
+      alert('Only administrators can modify panel visibility.');
+      return;
+    }
+    setRoleUiConfigs((prev) => {
+      const current = prev[roleName] || getDefaultUiConfigForRole(roleName);
+      const curHidden = current.hiddenPanels || [];
+      let nextHidden = hidden ? [...curHidden, panelId] : curHidden.filter((p) => p !== panelId);
+      nextHidden = Array.from(new Set(nextHidden));
+      const updated: RoleUiConfig = {
+        ...current,
+        hiddenPanels: nextHidden,
+      };
+      const next = { ...prev, [roleName]: updated };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_UI_CONFIGS_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save panel configs', e);
+      }
+      return next;
+    });
+  };
+
+  const resetRoleUiConfig = (roleName: string) => {
+    if (!actualIsAdmin) return;
+    const def = getDefaultUiConfigForRole(roleName);
+    setRoleUiConfigs((prev) => {
+      const next = { ...prev, [roleName]: def };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_UI_CONFIGS_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to reset UI config', e);
+      }
+      return next;
+    });
   };
 
   // Update profile attributes with RBAC guards
@@ -1006,6 +1202,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteRole,
         getRole,
         assignRoleToUser,
+        roleUiConfigs,
+        updateRoleUiConfig,
+        setButtonStateForRole,
+        toggleTabForRole,
+        togglePanelForRole,
+        resetRoleUiConfig,
+        getButtonState,
+        isButtonVisible,
+        isButtonDisabled,
+        isTabVisible,
+        isPanelVisible,
+        simulatedRole,
+        setSimulatedRole,
+        effectiveRole,
+        isSimulating,
+        actualIsAdmin,
         isAdmin,
         isRegionalDirector,
         isBlitzManager,

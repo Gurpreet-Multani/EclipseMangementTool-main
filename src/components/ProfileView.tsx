@@ -45,6 +45,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
     isRepresentative,
     canChangeUserRolesAndTitles,
     canChangePayRates,
+    isPanelVisible,
+    isButtonVisible,
+    isButtonDisabled,
+    effectiveRole,
   } = useAuth();
 
   // Target rep selector for Admin / Manager editing
@@ -535,32 +539,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
           </div>
 
           {/* Visual Team Command Structure Tree */}
-          <div className="pt-4 border-t border-slate-800/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <GitFork className="w-4 h-4 text-emerald-400" />
-                <h4 className="text-sm font-bold text-white">Visual Team Hierarchy Tree</h4>
-                <span className="text-[10px] text-slate-400 hidden sm:inline">
-                  (Regional Directors → Blitz Managers → Team Leads → Reps)
-                </span>
+          {isPanelVisible('hierarchy_tree') && (
+            <div className="pt-4 border-t border-slate-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GitFork className="w-4 h-4 text-emerald-400" />
+                  <h4 className="text-sm font-bold text-white">Visual Team Hierarchy Tree</h4>
+                  <span className="text-[10px] text-slate-400 hidden sm:inline">
+                    (Regional Directors → Blitz Managers → Team Leads → Reps)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHierarchyTree(!showHierarchyTree)}
+                  className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{showHierarchyTree ? 'Collapse Tree' : 'Expand Visual Tree'}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowHierarchyTree(!showHierarchyTree)}
-                className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 cursor-pointer"
-              >
-                <span>{showHierarchyTree ? 'Collapse Tree' : 'Expand Visual Tree'}</span>
-              </button>
-            </div>
 
-            {showHierarchyTree && (
-              <VisualHierarchyTree
-                users={allUsers}
-                currentUserId={targetUserId || currentUser?.id}
-                onSelectUser={(uId) => handleSelectUserToEdit(uId)}
-              />
-            )}
-          </div>
+              {showHierarchyTree && (
+                <VisualHierarchyTree
+                  users={allUsers}
+                  currentUserId={targetUserId || currentUser?.id}
+                  onSelectUser={(uId) => handleSelectUserToEdit(uId)}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* SECTION 3: EMERGENCY CONTACT */}
@@ -607,7 +613,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
         </div>
 
         {/* SECTION 4: DIRECT DEPOSIT & BANKING */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
+        {isPanelVisible('direct_deposit') && (
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-emerald-400" />
@@ -695,13 +702,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
             </div>
           </div>
         </div>
+        )}
 
         {/* SECTION 5: TRAVEL PROFILE */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Plane className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-base font-bold text-white">Travel Profile & Blitz Logistics</h3>
-          </div>
+        {isPanelVisible('travel_profile') && (
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Plane className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-base font-bold text-white">Travel Profile & Blitz Logistics</h3>
+            </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -744,6 +753,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
             </div>
           </div>
         </div>
+        )}
 
         {/* SECTION 6: PICTURE OF ID & PROFESSIONAL BADGE PHOTO */}
         <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">

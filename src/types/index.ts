@@ -9,6 +9,42 @@ export type UserRole =
   | 'Representative'
   | string;
 
+export type ButtonActionId =
+  | 'log_sale'
+  | 'book_blitz'
+  | 'launch_blitz'
+  | 'messaging'
+  | 'export_data'
+  | 'course_reviews'
+  | 'completed_courses'
+  | 'account_approvals'
+  | 'role_manager'
+  | 'rbac_matrix'
+  | 'edit_pay_rates'
+  | 'edit_roles_titles'
+  | 'cut_turf';
+
+export type PanelSectionId =
+  | 'financial_kpis'
+  | 'leaderboard'
+  | 'squad_pacing'
+  | 'carrier_splits'
+  | 'direct_deposit'
+  | 'travel_profile'
+  | 'hierarchy_tree'
+  | 'active_blitzes'
+  | 'course_authoring';
+
+export type AppTabId = 'work' | 'blitz' | 'training' | 'profile' | 'admin_hub';
+
+export type ButtonVisibilityState = 'enabled' | 'disabled' | 'hidden';
+
+export interface RoleUiConfig {
+  buttonStates: Partial<Record<ButtonActionId, ButtonVisibilityState>>;
+  visibleTabs: AppTabId[];
+  hiddenPanels: PanelSectionId[];
+}
+
 export interface RolePermissions {
   canManageAllUsers: boolean;
   canManageTeam: boolean;
@@ -34,6 +70,7 @@ export interface CustomRole {
   name: string;
   description: string;
   permissions: RolePermissions;
+  uiConfig?: RoleUiConfig;
   isCustom: boolean;
   createdAt: string;
   createdBy: string;
@@ -85,6 +122,8 @@ export interface UserProfile {
   rejectionReason?: string;
   managerId?: string;
   managerName?: string;
+  customPermissions?: Partial<RolePermissions>;
+  customButtonStates?: Partial<Record<ButtonActionId, ButtonVisibilityState>>;
   dateOfBirth: string;
   shirtSize: 'XS' | 'S' | 'M' | 'L' | 'XL' | '2XL' | '3XL';
   phone: string;
@@ -111,6 +150,38 @@ export interface UserProfile {
 
 export type OrderStatus = 'installed' | 'scheduled' | 'cancelled' | 'chargeback' | 'pending';
 
+export type CustomerSmsType = 'pre_install' | 'day_of_install' | 'post_install_checkup';
+
+export interface CustomerSmsMessage {
+  id: string;
+  orderId: string;
+  customerName: string;
+  customerPhone: string;
+  type: CustomerSmsType;
+  title: string;
+  messageText: string;
+  scheduledForDate: string; // YYYY-MM-DD
+  scheduledForTime?: string; // e.g. "09:00 AM"
+  status: 'scheduled' | 'sent' | 'cancelled' | 'paused';
+  sentAt?: string;
+  enabled: boolean;
+  notes?: string;
+}
+
+export interface CustomerSmsConfig {
+  autoSmsEnabled: boolean;
+  preInstallEnabled: boolean;
+  dayOfInstallEnabled: boolean;
+  postInstallEnabled: boolean;
+  customTemplates?: {
+    pre_install?: string;
+    day_of_install?: string;
+    post_install_checkup?: string;
+  };
+  messages?: CustomerSmsMessage[];
+  lastDispatchedAt?: string;
+}
+
 export interface SaleOrder {
   id: string;
   orderNumber: string;
@@ -135,6 +206,12 @@ export interface SaleOrder {
   blitzId?: string;
   blitzName?: string;
   notes?: string;
+  confirmationCode?: string;
+  detectedCrm?: string;
+  monthlyPrice?: number;
+  screenshotPreviewUrl?: string;
+  customerSmsConfig?: CustomerSmsConfig;
+  smsMessages?: CustomerSmsMessage[];
   createdAt: string;
 }
 
