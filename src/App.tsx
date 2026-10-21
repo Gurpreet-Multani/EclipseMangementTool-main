@@ -91,12 +91,12 @@ const MainAppContent: React.FC = () => {
 
   return (
     <DeviceShell>
-      <div className="flex-1 flex flex-col min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),transparent_30%),linear-gradient(135deg,#020817_0%,#051914_30%,#020817_100%)] text-slate-100 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-15%,rgba(52,211,153,0.14),rgba(10,10,10,0))]"></div>
-          <div className="absolute top-8 left-1/4 w-56 h-56 bg-emerald-500/8 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-1/4 w-72 h-72 bg-teal-500/8 rounded-full blur-3xl"></div>
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.02),rgba(148,163,184,0))]"></div>
+      <div className="flex-1 flex flex-col min-h-screen bg-[#020817] text-slate-100 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {/* Ambient lighting positioned below the top navigation to prevent washing out header buttons */}
+          <div className="absolute top-36 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-96 right-1/4 w-80 h-80 bg-teal-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_40%,rgba(16,185,129,0.06),transparent_70%)]"></div>
         </div>
         <div className="relative z-10 flex-1 flex flex-col">
         {/* Live Admin Role Simulator Banner */}
