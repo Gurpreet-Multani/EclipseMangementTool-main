@@ -5,8 +5,6 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initMobileReachScheduler, runMobileReachSync, getMobileReachSyncState } from './src/server/mobileReachSync.ts';
-import { db } from './src/lib/firebase.ts';
-import { doc, setDoc } from 'firebase/firestore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +25,21 @@ async function startServer() {
       },
     },
   });
+
+  // Lazy server Firestore connection
+  let serverDb: any = null;
+  try {
+    const cfgPath = path.resolve(__dirname, 'firebase-applet-config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { getFirestore } = await import('firebase/firestore');
+      const serverApp = !getApps().length ? initializeApp(cfg) : getApps()[0];
+      serverDb = cfg.firestoreDatabaseId ? getFirestore(serverApp, cfg.firestoreDatabaseId) : getFirestore(serverApp);
+    }
+  } catch (e) {
+    console.warn('[Server Firestore init notice]:', e);
+  }
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
@@ -82,15 +95,18 @@ async function startServer() {
       await fs.promises.writeFile(jsonPath, JSON.stringify(currentUsers, null, 2), 'utf8');
 
       // 2. Persist directly to Cloud Firestore from server
-      try {
-        await setDoc(doc(db, 'users', user.id), {
-          ...user,
-          approvalStatus: user.approvalStatus || 'approved',
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
-        console.log(`[Cloud Firestore Persist] Saved ${user.id} (${user.email}) to Firestore database`);
-      } catch (cloudErr) {
-        console.warn('[Cloud Firestore Persist notice]:', cloudErr);
+      if (serverDb) {
+        try {
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(serverDb, 'users', user.id), {
+            ...user,
+            approvalStatus: user.approvalStatus || 'approved',
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+          console.log(`[Cloud Firestore Persist] Saved ${user.id} (${user.email}) to Firestore database`);
+        } catch (cloudErr) {
+          console.warn('[Cloud Firestore Persist notice]:', cloudErr);
+        }
       }
 
       // 2. Safely sync to src/data/nonVoltData.ts

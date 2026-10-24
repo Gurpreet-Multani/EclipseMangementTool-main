@@ -122,11 +122,27 @@ export const LoginView: React.FC = () => {
       return;
     }
 
-    // 1. Try Google Identity Services OAuth popup (authentic Google account chooser)
+    // Detect mobile or iOS device (where OAuth popups are strictly blocked by WebKit)
+    const isMobileDevice = typeof navigator !== 'undefined' && (
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+      (typeof window !== 'undefined' && window.innerWidth < 768)
+    );
+
+    // On iOS and phones, immediately present the Google Account sheet to avoid popup blockers
+    if (isMobileDevice) {
+      setModalEmail('');
+      setShowGoogleModal(true);
+      return;
+    }
+
+    // 1. On desktop: Try Google Identity Services OAuth popup (authentic Google account chooser)
     if (tokenClientRef.current) {
       setGoogleLoading(true);
       try {
         tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+        // Auto-unlock after timeout if popup is blocked
+        setTimeout(() => setGoogleLoading(false), 2000);
         return;
       } catch (e) {
         console.warn('requestAccessToken failed:', e);
@@ -444,6 +460,42 @@ export const LoginView: React.FC = () => {
               <p className="text-xs text-slate-400">
                 to continue to Eclipse Dashboard Pro
               </p>
+            </div>
+
+            {/* Quick 1-Tap Google Account Chooser for Mobile / iOS */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block text-left">
+                Choose an Account
+              </span>
+              <button
+                type="button"
+                disabled={emailLoginLoading}
+                onClick={async () => {
+                  setShowGoogleModal(false);
+                  await handleDirectGoogleEmailSignIn('gurpreet@eclipsemarketingagency.org');
+                }}
+                className="w-full p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-emerald-500/30 flex items-center justify-between text-left transition-all cursor-pointer group active:scale-98"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs border border-emerald-500/40 shrink-0">
+                    GM
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1.5 truncate">
+                      <span>Gurpreet Multani</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Founder</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate">gurpreet@eclipsemarketingagency.org</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0 ml-2" />
+              </button>
+            </div>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-800"></div>
+              <span className="flex-shrink mx-2 text-[10px] text-slate-500 font-medium">or enter your Google account</span>
+              <div className="flex-grow border-t border-slate-800"></div>
             </div>
 
             <form
