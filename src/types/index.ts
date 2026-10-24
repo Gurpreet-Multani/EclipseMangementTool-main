@@ -143,6 +143,12 @@ export interface UserProfile {
     installRate: number;
     cancelRate: number;
     totalCommission: number;
+    weekDeals?: number;
+    weekInstalls?: number;
+    monthDeals?: number;
+    monthInstalls?: number;
+    allTimeDeals?: number;
+    allTimeInstalls?: number;
   };
   createdAt: string;
   updatedAt: string;

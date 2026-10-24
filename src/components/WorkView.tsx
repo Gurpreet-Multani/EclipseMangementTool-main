@@ -36,6 +36,7 @@ import {
   Eye,
   Smartphone,
   Trophy,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -102,8 +103,10 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
   // Chart Metric Filter: 'rates' | 'volume' | 'all'
   const [chartMetricView, setChartMetricView] = useState<'rates' | 'volume' | 'all'>('rates');
 
-  // Leaderboard Source: 'eclipse' or 'mobilereach'
-  const [leaderboardSource, setLeaderboardSource] = useState<'eclipse' | 'mobilereach'>('eclipse');
+  // Leaderboard Source: 'eclipse' or 'mobilereach' (default to live MobileReach / Fiber Volt)
+  const [leaderboardSource, setLeaderboardSource] = useState<'eclipse' | 'mobilereach'>('mobilereach');
+  // Personal KPI timeframe: 'month' | 'week' | 'all'
+  const [personalTimeframe, setPersonalTimeframe] = useState<'month' | 'week' | 'all'>('month');
   // MobileReach Leaderboard Modal visibility
   const [showMobileReachLeaderboard, setShowMobileReachLeaderboard] = useState<boolean>(false);
 
@@ -178,7 +181,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     };
   }, [sales]);
 
-  // Calculate Personal Stats for currently logged in user
+  // Calculate Personal Stats for currently logged in user based on personalTimeframe
   const personalStats = useMemo(() => {
     if (!currentUser) {
       return {
@@ -193,21 +196,78 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       };
     }
 
-    const myOrders = sales.filter((s) => s.repId === currentUser.id);
-    const installs = myOrders.filter((s) => s.status === 'installed').length;
-    const cancels = myOrders.filter((s) => s.status === 'cancelled').length;
-    const scheduled = myOrders.filter((s) => s.status === 'scheduled').length;
-    const chargebacks = myOrders.filter((s) => s.status === 'chargeback').length;
-    const totalSales = myOrders.length;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday);
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+    const startOfWeek = new Date(startOfToday);
+    const dayOfWeek = startOfWeek.getDay();
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(startOfWeek.getDate() - diffToMonday);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const myAllOrders = sales.filter((s) => {
+      if (s.repId === currentUser.id) return true;
+      if (currentUser.email.toLowerCase().includes('gurpreet') && s.repId === 'user_owner_gurpreet') return true;
+      return false;
+    });
+
+    let myOrders = myAllOrders;
+    if (personalTimeframe === 'week') {
+      myOrders = myAllOrders.filter((s) => {
+        const d = new Date(s.createdAt || s.orderDate);
+        return d >= startOfWeek && d < startOfTomorrow;
+      });
+    } else if (personalTimeframe === 'month') {
+      myOrders = myAllOrders.filter((s) => {
+        const d = new Date(s.createdAt || s.orderDate);
+        return d >= startOfMonth && d < startOfTomorrow;
+      });
+    }
+
+    let installs = myOrders.filter((s) => s.status === 'installed').length;
+    let cancels = myOrders.filter((s) => s.status === 'cancelled').length;
+    let scheduled = myOrders.filter((s) => s.status === 'scheduled').length;
+    let chargebacks = myOrders.filter((s) => s.status === 'chargeback').length;
+    let totalSales = myOrders.length;
+
+    // Cross-reference MobileReach Live Leaderboard match or user.stats
+    const mrKey = personalTimeframe === 'week' ? 'week' : personalTimeframe === 'all' ? 'all' : 'month';
+    const mrList = mobileReachStatus?.leaderboard?.[mrKey] || [];
+    const mrMatch = mrList.find(
+      (m) =>
+        m.full_name.toLowerCase() === currentUser.displayName.toLowerCase() ||
+        (m.full_name.toLowerCase().includes(currentUser.lastName.toLowerCase()) &&
+          m.full_name.toLowerCase().includes(currentUser.firstName.toLowerCase()))
+    );
+
+    if (mrMatch) {
+      installs = mrMatch.installs;
+      totalSales = mrMatch.sales;
+      scheduled = Math.max(0, totalSales - installs - cancels);
+    } else if (currentUser.stats) {
+      if (personalTimeframe === 'week' && currentUser.stats.weekDeals !== undefined) {
+        totalSales = currentUser.stats.weekDeals;
+        installs = currentUser.stats.weekInstalls || 0;
+        scheduled = Math.max(0, totalSales - installs);
+      } else if (personalTimeframe === 'month' && currentUser.stats.monthDeals !== undefined) {
+        totalSales = currentUser.stats.monthDeals;
+        installs = currentUser.stats.monthInstalls || 0;
+        scheduled = Math.max(0, totalSales - installs);
+      } else if (personalTimeframe === 'all' && currentUser.stats.allTimeDeals !== undefined) {
+        totalSales = currentUser.stats.allTimeDeals;
+        installs = currentUser.stats.allTimeInstalls || 0;
+        scheduled = Math.max(0, totalSales - installs);
+      }
+    }
 
     const installRate = totalSales > 0 ? parseFloat(((installs / (installs + cancels || 1)) * 100).toFixed(1)) : 100;
     const cancelRate = totalSales > 0 ? parseFloat(((cancels / totalSales) * 100).toFixed(1)) : 0;
 
-    const totalCommission = myOrders.reduce((acc, curr) => {
-      if (curr.status === 'installed' || curr.status === 'scheduled') return acc + curr.payout;
-      if (curr.status === 'chargeback') return acc - Math.abs(curr.payout);
-      return acc;
-    }, 0);
+    const repRate = currentUser.payRates?.['Sparklight Fiber'] || currentUser.payRates?.['T-Mobile Fiber'] || 320;
+    const totalCommission = installs * repRate;
 
     return {
       installs,
@@ -219,7 +279,54 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       cancelRate,
       totalCommission,
     };
-  }, [sales, currentUser]);
+  }, [sales, currentUser, personalTimeframe, mobileReachStatus]);
+
+  // Dedicated multi-period stats breakdown matching Fiber Volt / MobileReach live carrier portal
+  const userFiberVoltSummary = useMemo(() => {
+    if (!currentUser) {
+      return {
+        week: { deals: 0, installs: 0, rank: null as number | null },
+        month: { deals: 0, installs: 0, rank: null as number | null },
+        allTime: { deals: 0, installs: 0, rank: null as number | null },
+      };
+    }
+
+    const findMr = (key: 'week' | 'month' | 'all') => {
+      const list = mobileReachStatus?.leaderboard?.[key] || [];
+      const idx = list.findIndex(
+        (m) =>
+          m.full_name.toLowerCase() === currentUser.displayName.toLowerCase() ||
+          (m.full_name.toLowerCase().includes(currentUser.lastName.toLowerCase()) &&
+            m.full_name.toLowerCase().includes(currentUser.firstName.toLowerCase()))
+      );
+      if (idx !== -1) {
+        return { deals: list[idx].sales, installs: list[idx].installs, rank: idx + 1 };
+      }
+      return null;
+    };
+
+    const mrWeek = findMr('week');
+    const mrMonth = findMr('month');
+    const mrAll = findMr('all');
+
+    return {
+      week: {
+        deals: mrWeek ? mrWeek.deals : currentUser.stats?.weekDeals ?? 0,
+        installs: mrWeek ? mrWeek.installs : currentUser.stats?.weekInstalls ?? 0,
+        rank: mrWeek?.rank ?? null,
+      },
+      month: {
+        deals: mrMonth ? mrMonth.deals : currentUser.stats?.monthDeals ?? 0,
+        installs: mrMonth ? mrMonth.installs : currentUser.stats?.monthInstalls ?? 0,
+        rank: mrMonth?.rank ?? null,
+      },
+      allTime: {
+        deals: mrAll ? mrAll.deals : currentUser.stats?.allTimeDeals ?? 0,
+        installs: mrAll ? mrAll.installs : currentUser.stats?.allTimeInstalls ?? 0,
+        rank: mrAll?.rank ?? null,
+      },
+    };
+  }, [currentUser, mobileReachStatus]);
 
   const timeframeFilteredSales = useMemo(() => {
     if (leaderboardTimeframe === 'lifetime') return sales;
@@ -265,7 +372,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     });
   }, [sales, leaderboardTimeframe, leaderboardCustomStart, leaderboardCustomEnd]);
 
-  // Leaderboard Calculation
+  // Leaderboard Calculation (Synchronized with live Fiber Volt / MobileReach numbers)
   const leaderboardData = useMemo(() => {
     let targetUsers = allUsers;
     if (leaderboardScope === 'team' && currentUser?.managerId) {
@@ -276,14 +383,43 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       targetUsers = allUsers.filter((u) => u.managerId === currentUser.id || u.id === currentUser.id);
     }
 
+    const mrKey = leaderboardTimeframe === 'week' ? 'week' : leaderboardTimeframe === 'lifetime' ? 'all' : 'month';
+    const mrList = mobileReachStatus?.leaderboard?.[mrKey] || [];
+
     return targetUsers
       .map((user) => {
         const userOrders = timeframeFilteredSales.filter((s) => s.repId === user.id);
-        const installs = userOrders.filter((s) => s.status === 'installed').length;
-        const totalSales = userOrders.length;
+        let installs = userOrders.filter((s) => s.status === 'installed').length;
+        let totalSales = userOrders.length;
         const cancels = userOrders.filter((s) => s.status === 'cancelled').length;
+
+        // Check live MobileReach sync list
+        const mrMatch = mrList.find(
+          (m) =>
+            m.full_name.toLowerCase() === user.displayName.toLowerCase() ||
+            (m.full_name.toLowerCase().includes(user.lastName.toLowerCase()) &&
+              m.full_name.toLowerCase().includes(user.firstName.toLowerCase()))
+        );
+
+        if (mrMatch) {
+          installs = mrMatch.installs;
+          totalSales = mrMatch.sales;
+        } else if (user.stats) {
+          if (leaderboardTimeframe === 'week' && user.stats.weekDeals !== undefined) {
+            totalSales = user.stats.weekDeals;
+            installs = user.stats.weekInstalls || 0;
+          } else if (leaderboardTimeframe === 'month' && user.stats.monthDeals !== undefined) {
+            totalSales = user.stats.monthDeals;
+            installs = user.stats.monthInstalls || 0;
+          } else if (leaderboardTimeframe === 'lifetime' && user.stats.allTimeDeals !== undefined) {
+            totalSales = user.stats.allTimeDeals;
+            installs = user.stats.allTimeInstalls || 0;
+          }
+        }
+
         const installRate = totalSales > 0 ? Math.round((installs / (installs + cancels || 1)) * 100) : 100;
-        const commission = userOrders.reduce((sum, o) => (o.status === 'installed' ? sum + o.payout : sum), 0);
+        const repRate = user.payRates?.['Sparklight Fiber'] || user.payRates?.['T-Mobile Fiber'] || 320;
+        const commission = installs * repRate;
 
         return {
           user,
@@ -295,7 +431,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
         };
       })
       .sort((a, b) => b.installs - a.installs || b.totalSales - a.totalSales);
-  }, [allUsers, timeframeFilteredSales, leaderboardScope, currentUser, isManager]);
+  }, [allUsers, timeframeFilteredSales, leaderboardScope, currentUser, isManager, leaderboardTimeframe, mobileReachStatus]);
 
   // Comparative Team vs. Company Performance Analytics for Recharts
   const comparativeAnalytics = useMemo(() => {
@@ -590,10 +726,10 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
             </button>
           )}
 
-          <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800">
+          <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800 w-full sm:w-auto">
             <button
               onClick={() => setSubTab('stats')}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                 subTab === 'stats'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -604,7 +740,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
             </button>
             <button
               onClick={() => setSubTab('sales')}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                 subTab === 'sales'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -779,6 +915,165 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       {/* ======================================================== */}
       {subTab === 'stats' && (
         <div className="space-y-4">
+          {/* Fiber Volt Live Production & Period Switcher Banner */}
+          <div className="bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(5,47,38,0.7),rgba(15,23,42,0.96))] border border-emerald-500/30 rounded-2xl p-3.5 sm:p-4 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-72 h-32 bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                    Fiber Volt Portal Sync • Live Verified
+                  </span>
+                  <span className="text-[10px] bg-emerald-950/80 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    MobileReach Direct Feed
+                  </span>
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <span>{currentUser?.displayName} Production Hub</span>
+                  {userFiberVoltSummary[personalTimeframe === 'all' ? 'allTime' : personalTimeframe].rank && (
+                    <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-black">
+                      Carrier Rank #{userFiberVoltSummary[personalTimeframe === 'all' ? 'allTime' : personalTimeframe].rank}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Carrier-verified production metrics for deals submitted and confirmed installs.
+                </p>
+              </div>
+
+              {/* Interactive Timeframe Switcher */}
+              <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-slate-950/90 p-1.5 rounded-xl border border-slate-800 shrink-0 shadow-inner w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setPersonalTimeframe('week')}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
+                    personalTimeframe === 'week'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span>This Week</span>
+                  <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-mono font-black ${personalTimeframe === 'week' ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-emerald-400'}`}>
+                    {userFiberVoltSummary.week.deals}D/{userFiberVoltSummary.week.installs}I
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPersonalTimeframe('month')}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
+                    personalTimeframe === 'month'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span>This Month</span>
+                  <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-mono font-black ${personalTimeframe === 'month' ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-emerald-400'}`}>
+                    {userFiberVoltSummary.month.deals}D/{userFiberVoltSummary.month.installs}I
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPersonalTimeframe('all')}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
+                    personalTimeframe === 'all'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span>All-Time</span>
+                  <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-mono font-black ${personalTimeframe === 'all' ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-emerald-400'}`}>
+                    {userFiberVoltSummary.allTime.deals}D/{userFiberVoltSummary.allTime.installs}I
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick 3-Period Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80">
+              <div
+                onClick={() => setPersonalTimeframe('week')}
+                className={`cursor-pointer rounded-xl p-2.5 transition-all ${
+                  personalTimeframe === 'week'
+                    ? 'bg-emerald-950/70 border border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-md'
+                    : 'bg-slate-900/60 border border-slate-800/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-emerald-400" />
+                    This Week
+                  </span>
+                  {userFiberVoltSummary.week.rank && (
+                    <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                      Rank #{userFiberVoltSummary.week.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg font-black text-white">{userFiberVoltSummary.week.deals} Deals</span>
+                  <span className="text-xs font-bold text-emerald-400">{userFiberVoltSummary.week.installs} Installs</span>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setPersonalTimeframe('month')}
+                className={`cursor-pointer rounded-xl p-2.5 transition-all ${
+                  personalTimeframe === 'month'
+                    ? 'bg-emerald-950/70 border border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-md'
+                    : 'bg-slate-900/60 border border-slate-800/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
+                  <span className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-emerald-400" />
+                    This Month
+                  </span>
+                  {userFiberVoltSummary.month.rank && (
+                    <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                      Rank #{userFiberVoltSummary.month.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg font-black text-white">{userFiberVoltSummary.month.deals} Deals</span>
+                  <span className="text-xs font-bold text-emerald-400">{userFiberVoltSummary.month.installs} Installs</span>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setPersonalTimeframe('all')}
+                className={`cursor-pointer rounded-xl p-2.5 transition-all ${
+                  personalTimeframe === 'all'
+                    ? 'bg-emerald-950/70 border border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-md'
+                    : 'bg-slate-900/60 border border-slate-800/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
+                  <span className="flex items-center gap-1">
+                    <Trophy className="w-3 h-3 text-amber-400" />
+                    All-Time
+                  </span>
+                  {userFiberVoltSummary.allTime.rank && (
+                    <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                      Rank #{userFiberVoltSummary.allTime.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg font-black text-white">{userFiberVoltSummary.allTime.deals} Deals</span>
+                  <span className="text-xs font-bold text-emerald-400">{userFiberVoltSummary.allTime.installs} Installs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Personal Key Metrics Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
             {/* Installs */}
@@ -798,7 +1093,9 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   {personalStats.installRate}% Rate
                 </span>
               </div>
-              <p className="relative z-10 text-[11px] text-slate-500 mt-1">Confirmed by carrier dispatch</p>
+              <p className="relative z-10 text-[11px] text-slate-400 mt-1 font-medium">
+                Carrier Verified ({personalTimeframe === 'week' ? 'This Week' : personalTimeframe === 'month' ? 'This Month' : 'All-Time'})
+              </p>
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
             </div>
 
@@ -817,7 +1114,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 <span className="text-xl sm:text-2xl font-black text-white">{personalStats.scheduled}</span>
                 <span className="text-xs font-semibold text-emerald-400">Upcoming</span>
               </div>
-              <p className="relative z-10 text-[11px] text-slate-500 mt-1">Technician appointment booked</p>
+              <p className="relative z-10 text-[11px] text-slate-400 mt-1">Booked dispatch queue</p>
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             </div>
 
@@ -838,7 +1135,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   {personalStats.cancelRate}% Rate
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
+              <p className="text-[11px] text-slate-400 mt-1">
                 Chargebacks: {personalStats.chargebacks}
               </p>
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-amber-500"></div>
@@ -859,7 +1156,9 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   ${personalStats.totalCommission.toLocaleString()}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">Total Sales: {personalStats.totalSales}</p>
+              <p className="text-[11px] text-slate-300 mt-1 font-medium">
+                Total Deals: <strong>{personalStats.totalSales}</strong>
+              </p>
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
             </div>
           </div>
@@ -1452,18 +1751,18 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 Daily install pulse and priority follow-up queue for field execution.
               </p>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Orders This Month</span>
-                  <span className="text-lg font-black text-emerald-400">{fieldFocusSnapshot.monthlyOrders}</span>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2 sm:p-2.5 text-center">
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase block truncate">This Month</span>
+                  <span className="text-base sm:text-lg font-black text-emerald-400">{fieldFocusSnapshot.monthlyOrders}</span>
                 </div>
-                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Pending</span>
-                  <span className="text-lg font-black text-cyan-300">{fieldFocusSnapshot.pendingCount}</span>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2 sm:p-2.5 text-center">
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase block truncate">Pending</span>
+                  <span className="text-base sm:text-lg font-black text-cyan-300">{fieldFocusSnapshot.pendingCount}</span>
                 </div>
-                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Upsell Ratio (1G→2G)</span>
-                  <span className="text-lg font-black text-amber-400">{fieldFocusSnapshot.upsellRatio}</span>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2 sm:p-2.5 text-center">
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase block truncate">Upsell 2G</span>
+                  <span className="text-base sm:text-lg font-black text-amber-400">{fieldFocusSnapshot.upsellRatio}</span>
                 </div>
               </div>
 
@@ -1562,7 +1861,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
               {/* Scan Screenshot, Add Sale & SMS Dispatch Engine Action Buttons */}
               {isButtonVisible('log_sale') && (
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="grid grid-cols-1 sm:grid-cols-3 md:flex items-center gap-2 shrink-0 w-full md:w-auto">
                   <button
                     type="button"
                     onClick={async () => {
@@ -1621,7 +1920,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 <select
                   value={filterRepId}
                   onChange={(e) => setFilterRepId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 truncate"
                 >
                   <option value="me">My Personal Orders</option>
                   {(isManager || isAdmin) && (
@@ -1644,7 +1943,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 <select
                   value={filterIsp}
                   onChange={(e) => setFilterIsp(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 truncate"
                 >
                   <option value="all">All Carrier Programs</option>
                   <option value="Sparklight Fiber">Sparklight Fiber</option>
@@ -1666,7 +1965,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 truncate"
                 >
                   <option value="all">All Statuses</option>
                   <option value="installed">Installed (Verified)</option>
@@ -1684,7 +1983,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 <select
                   value={filterState}
                   onChange={(e) => setFilterState(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 truncate"
                 >
                   <option value="all">All 52 States & Territories</option>
                   {US_STATES.map((st) => (
@@ -1723,106 +2022,45 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 return (
                   <div
                     key={order.id}
-                    className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 transition-all shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 sm:p-5 transition-all shadow-sm space-y-3 overflow-hidden min-w-0 w-full"
                   >
-                    {/* Left: Customer & Address Info */}
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSmsSelectedOrder(order)}
-                          className="font-mono text-xs font-bold text-emerald-400 bg-cyan-950/50 hover:bg-cyan-900/60 px-2 py-0.5 rounded border border-cyan-800/40 flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Click to view & configure automated customer SMS reminders"
-                        >
-                          <Smartphone className="w-3 h-3 text-emerald-400" />
-                          <span>{order.orderNumber}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSmsSelectedOrder(order)}
-                          className="text-sm sm:text-base font-black text-white hover:text-emerald-300 transition-colors text-left cursor-pointer"
-                          title="Click customer to open Automated SMS sequence"
-                        >
-                          {order.customerName}
-                        </button>
-                        <span className="text-xs text-slate-400">• {order.customerPhone}</span>
-                        <button
-                          type="button"
-                          onClick={() => setSmsSelectedOrder(order)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer transition-colors ${
-                            order.customerSmsConfig?.autoSmsEnabled !== false
-                              ? 'bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300'
-                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
-                          }`}
-                          title="Automated customer messages: 1-day ahead, install day, 1-week checkup"
-                        >
-                          <Smartphone className="w-2.5 h-2.5 text-emerald-400" />
-                          <span>{order.customerSmsConfig?.autoSmsEnabled !== false ? 'SMS Sequence Active' : 'SMS Paused'}</span>
-                          {order.customerSmsConfig?.autoSmsEnabled !== false && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          )}
-                        </button>
-                        {order.detectedCrm && (
-                          <span className="text-[10px] font-bold bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <Sparkles className="w-2.5 h-2.5" />
-                            {order.detectedCrm}
-                          </span>
-                        )}
-                        {typeof order.monthlyPrice === 'number' && order.monthlyPrice > 0 && (
-                          <span className="text-[10px] font-mono font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
-                            ${order.monthlyPrice}/mo
-                          </span>
-                        )}
-                        {order.screenshotPreviewUrl && (
+                    {/* Card Header: Customer Info + Status & Commission */}
+                    <div className="flex items-start justify-between gap-3 min-w-0">
+                      {/* Customer & Order # */}
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                           <button
                             type="button"
-                            onClick={() => {
-                              setViewingReceiptUrl(order.screenshotPreviewUrl || null);
-                              setViewingReceiptTitle(`Confirmation Receipt: ${order.customerName} (${order.orderNumber})`);
-                            }}
-                            className="text-[10px] font-bold bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer"
+                            onClick={() => setSmsSelectedOrder(order)}
+                            className="font-mono text-[11px] font-bold text-emerald-400 bg-cyan-950/60 hover:bg-cyan-900/80 px-2 py-0.5 rounded border border-cyan-800/40 inline-flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+                            title="Click to view & configure automated customer SMS reminders"
                           >
-                            <Eye className="w-2.5 h-2.5" />
-                            <span>View Screenshot</span>
+                            <Smartphone className="w-3 h-3 text-emerald-400" />
+                            <span>{order.orderNumber}</span>
                           </button>
-                        )}
-                      </div>
 
-                      <div className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span>
-                          📍 {order.address}, {order.city}, {order.state} {order.zipCode}
-                        </span>
-                        <span className="text-slate-500">|</span>
-                        <span className="font-semibold text-emerald-300">
-                          {order.ispProgram} ({order.speedTier})
-                        </span>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => setSmsSelectedOrder(order)}
+                            className="text-sm sm:text-base font-black text-white hover:text-emerald-300 transition-colors text-left cursor-pointer truncate max-w-[150px] sm:max-w-xs"
+                            title="Click customer to open Automated SMS sequence"
+                          >
+                            {order.customerName}
+                          </button>
+                        </div>
 
-                      <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
-                        <span>Sold by: <strong className="text-slate-200">{order.repName}</strong></span>
-                        {order.blitzName && (
-                          <>
-                            <span className="text-slate-600">•</span>
-                            <span className="text-indigo-400 font-medium">{order.blitzName}</span>
-                          </>
-                        )}
-                        <span className="text-slate-600">•</span>
-                        <span>Install Date: <strong className="text-slate-200">{order.installDate}</strong></span>
-                      </div>
-
-                      {order.notes && (
-                        <p className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/60 mt-2 font-mono">
-                          Note: {order.notes}
+                        <p className="text-[11px] text-slate-400 font-medium truncate">
+                          {order.customerPhone}
+                          {typeof order.monthlyPrice === 'number' && order.monthlyPrice > 0 && (
+                            <span className="ml-2 font-mono text-slate-300">• ${order.monthlyPrice}/mo</span>
+                          )}
                         </p>
-                      )}
-                    </div>
+                      </div>
 
-                    {/* Right: Status Badge & Commission Payout & Actions */}
-                    <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80">
-                      <div className="flex items-center gap-2">
-                        {/* Status Badge */}
+                      {/* Status Badge & Commission Payout */}
+                      <div className="flex flex-col items-end shrink-0 gap-1">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
                             isInstalled
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : isScheduled
@@ -1834,14 +2072,8 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                         >
                           {order.status}
                         </span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                          Commission
-                        </span>
                         <span
-                          className={`text-base font-black font-mono ${
+                          className={`text-sm sm:text-base font-black font-mono leading-none ${
                             isChargeback
                               ? 'text-rose-400'
                               : isCancelled
@@ -1852,29 +2084,87 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                           ${order.payout}
                         </span>
                       </div>
+                    </div>
 
-                      {/* Customer Actions */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSmsSelectedOrder(order)}
-                          className="px-2.5 py-1 text-xs rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 hover:text-white font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-                          title="Configure automated SMS: 1 day before install, install day, 1 week after"
-                        >
-                          <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Automated SMS</span>
-                          {order.customerSmsConfig?.autoSmsEnabled !== false && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition-colors cursor-pointer"
-                        >
-                          Update Status
-                        </button>
+                    {/* Inset Service & Address Details */}
+                    <div className="bg-slate-950/60 rounded-xl p-2.5 sm:p-3 border border-slate-800/70 space-y-1.5 text-xs min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap text-slate-300 min-w-0">
+                        <span className="font-bold text-emerald-300 truncate max-w-full">
+                          {order.ispProgram} ({order.speedTier})
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono shrink-0">
+                          Install: <strong className="text-slate-200">{order.installDate}</strong>
+                        </span>
                       </div>
+
+                      <div className="text-[11px] text-slate-400 flex items-start gap-1 break-words leading-tight min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                        <span className="break-words">
+                          {order.address}, {order.city}, {order.state} {order.zipCode}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Attribution & Metadata Badges */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-400 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span>Sold by: <strong className="text-slate-200">{order.repName}</strong></span>
+                        {order.blitzName && (
+                          <span className="text-indigo-400 font-medium truncate">• {order.blitzName}</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                        {order.screenshotPreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingReceiptUrl(order.screenshotPreviewUrl || null);
+                              setViewingReceiptTitle(`Confirmation Receipt: ${order.customerName} (${order.orderNumber})`);
+                            }}
+                            className="text-[10px] font-bold bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Eye className="w-2.5 h-2.5" />
+                            <span>Receipt</span>
+                          </button>
+                        )}
+
+                        {order.detectedCrm && (
+                          <span className="text-[10px] font-bold bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            {order.detectedCrm}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {order.notes && (
+                      <p className="text-[11px] text-slate-400 bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 font-mono break-words">
+                        Note: {order.notes}
+                      </p>
+                    )}
+
+                    {/* Action Buttons: Responsive Grid */}
+                    <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 sm:flex sm:justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSmsSelectedOrder(order)}
+                        className="px-2.5 py-2 text-xs rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 hover:text-white font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm min-h-[38px]"
+                        title="Configure automated SMS: 1 day before install, install day, 1 week after"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate">Automated SMS</span>
+                        {order.customerSmsConfig?.autoSmsEnabled !== false && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="px-2.5 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold flex items-center justify-center transition-colors cursor-pointer min-h-[38px]"
+                      >
+                        Update Status
+                      </button>
                     </div>
                   </div>
                 );
@@ -1968,7 +2258,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
       {/* Batch SMS Toast Feedback */}
       {smsBatchResult && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-950 border border-cyan-500/50 text-cyan-200 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-3">
+        <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 bg-slate-950/95 backdrop-blur-xl border border-cyan-500/50 text-cyan-200 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-3 max-w-[calc(100vw-2rem)]">
           <Smartphone className="w-4 h-4 text-cyan-400 shrink-0" />
           <span>{smsBatchResult}</span>
         </div>

@@ -97,23 +97,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         {/* Brand & Badge */}
-        <div className="flex items-center gap-2 min-w-0 flex-shrink">
-          <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-emerald-400/80 bg-slate-900 shadow-md ring-2 ring-emerald-500/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="relative flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-full border border-emerald-400/80 bg-slate-900 shadow-md ring-2 ring-emerald-500/30 shrink-0">
             <img
               src={eclipseLogo}
               alt="Eclipse logo"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
+              className="w-7 h-7 sm:w-10 sm:h-10 rounded-full object-cover"
             />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-black text-base tracking-tight text-white truncate drop-shadow-sm">Eclipse</span>
-              <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-[0.18em] px-2 py-0.5 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm">
+              <span className="font-black text-sm sm:text-base tracking-tight text-white truncate drop-shadow-sm">Eclipse</span>
+              <span className="text-[8px] sm:text-[10px] uppercase font-black tracking-[0.16em] px-1.5 py-0.5 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm shrink-0">
                 PRO
-              </span>
-              <span className="sm:hidden inline-flex items-center gap-1 text-[8px] text-emerald-300 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-500/40 font-bold shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Sync
               </span>
             </div>
             <p className="text-[9px] sm:text-[10px] text-slate-300 font-medium hidden sm:block truncate">
@@ -123,13 +119,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Action Icons & Persona Switcher */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 flex-wrap min-w-0">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 flex-nowrap min-w-0 shrink-0">
           {/* RBAC Security Info Button */}
           {isButtonVisible('rbac_matrix') && (
             <button
               onClick={isButtonDisabled('rbac_matrix') ? undefined : onOpenRbacModal}
               disabled={isButtonDisabled('rbac_matrix')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
                 isButtonDisabled('rbac_matrix')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white font-medium ring-1 ring-white/5'
@@ -161,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('role_manager') ? undefined : onOpenRoleManagementModal}
               disabled={isButtonDisabled('role_manager')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs transition-all shadow-md ${
                 isButtonDisabled('role_manager')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   : 'bg-indigo-950/95 hover:bg-indigo-900 border-indigo-500/70 text-indigo-100 font-bold ring-1 ring-indigo-400/20'
@@ -217,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('course_reviews') ? undefined : onOpenPendingReviews}
               disabled={isButtonDisabled('course_reviews')}
-              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
+              className={`hidden sm:flex relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('course_reviews')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white ring-1 ring-white/5'
@@ -239,7 +235,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('completed_courses') ? undefined : onOpenCompletedCourses}
               disabled={isButtonDisabled('completed_courses')}
-              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
+              className={`hidden sm:flex relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('completed_courses')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   : 'bg-slate-800/95 hover:bg-slate-700 border-slate-600/90 text-white ring-1 ring-white/5'
@@ -256,7 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={isButtonDisabled('account_approvals') ? undefined : onOpenApprovals}
               disabled={isButtonDisabled('account_approvals')}
-              className={`relative p-2.5 rounded-xl border transition-all shadow-md ${
+              className={`hidden sm:flex relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('account_approvals')
                   ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   : 'bg-amber-950/90 hover:bg-amber-900 border-amber-500/70 text-amber-200 ring-1 ring-amber-400/20'
@@ -293,7 +289,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Notifications Panel */}
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-slate-100">Live Field Updates</span>
@@ -396,7 +392,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Persona Switcher Dropdown */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="p-3.5 bg-slate-950/70 border-b border-slate-800">
                   <div className="flex items-center gap-3">
                     <img
@@ -488,6 +484,53 @@ export const Navbar: React.FC<NavbarProps> = ({
                       )}
                     </button>
                   )}
+
+                  {(isAdmin || actualIsAdmin) && isButtonVisible('role_manager') && (
+                    <button
+                      onClick={() => {
+                        onOpenRoleManagementModal();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-300 hover:text-indigo-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Master Controls (Roles & Permissions)</span>
+                    </button>
+                  )}
+
+                  {(isAdmin || isManager) && isButtonVisible('course_reviews') && (
+                    <button
+                      onClick={() => {
+                        onOpenPendingReviews();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-amber-300 hover:text-amber-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Pending Course Reviews</span>
+                      </div>
+                      {pendingReviewsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                          {pendingReviewsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {(isAdmin || isManager) && isButtonVisible('completed_courses') && (
+                    <button
+                      onClick={() => {
+                        onOpenCompletedCourses();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-emerald-300 hover:text-emerald-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Completed Coursework & Submissions</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
                       onOpenRbacModal();

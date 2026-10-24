@@ -71,7 +71,7 @@
   padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
 }
 .safe-area-pb {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
 }
 
 /* Modal overlay wrapper respecting notches on mobile */

@@ -176,7 +176,7 @@ export const BlitzBookingView: React.FC<BlitzBookingViewProps> = ({ onOpenMessag
   };
 
   return (
-    <div className="p-2.5 sm:p-3 max-w-7xl mx-auto space-y-2.5 pb-16 overflow-x-hidden">
+    <div className="p-2.5 sm:p-3 max-w-7xl mx-auto space-y-2.5 pb-24 sm:pb-20 overflow-x-hidden">
       {/* Header Banner */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(11,35,31,0.72),rgba(15,23,42,0.96))] p-3 sm:p-3.5 rounded-2xl border border-emerald-500/20 shadow-[0_14px_32px_rgba(2,6,23,0.28)] ring-1 ring-emerald-500/10">
         <div className="space-y-1 min-w-0">

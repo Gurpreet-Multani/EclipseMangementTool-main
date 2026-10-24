@@ -120,7 +120,7 @@ const MainAppContent: React.FC = () => {
         />
 
         {/* Tab Views */}
-        <main className="flex-1 w-full overflow-y-auto">
+        <main className="flex-1 w-full overflow-y-auto pb-24 sm:pb-28">
           {currentTab === 'work' && (
             <WorkView
               onOpenNewSale={(mode) => handleOpenNewSale(mode || 'manual')}

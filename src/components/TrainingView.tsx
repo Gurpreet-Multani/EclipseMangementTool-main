@@ -330,7 +330,7 @@ export const TrainingView: React.FC = () => {
   };
 
   return (
-    <div className="p-2.5 sm:p-4 max-w-7xl mx-auto space-y-4 pb-24 text-slate-100">
+    <div className="p-2.5 sm:p-4 max-w-7xl mx-auto space-y-4 pb-32 sm:pb-28 text-slate-100">
       {/* Header Banner */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(6,44,38,0.7),rgba(15,23,42,0.96))] p-4 sm:p-5 rounded-3xl border border-emerald-500/25 shadow-xl ring-1 ring-emerald-500/10">
         <div className="space-y-1.5">

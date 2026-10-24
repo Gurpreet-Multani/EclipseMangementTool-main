@@ -856,7 +856,7 @@ export const CustomerSmsModal: React.FC<CustomerSmsModalProps> = ({ order, onClo
 
         {/* Toast Feedback */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-slate-950 border border-emerald-500/40 text-emerald-300 px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-2">
+          <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 bg-slate-950/95 backdrop-blur-xl border border-emerald-500/40 text-emerald-300 px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-2 max-w-[calc(100vw-2rem)]">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>

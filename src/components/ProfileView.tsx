@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { UserRole } from '../types';
 import { VisualHierarchyTree } from './VisualHierarchyTree';
 import {
@@ -24,7 +25,10 @@ import {
   AlertTriangle,
   Sparkles,
   Users,
-  GitFork
+  GitFork,
+  TrendingUp,
+  Trophy,
+  Zap,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -54,6 +58,55 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
   // Target rep selector for Admin / Manager editing
   const [targetUserId, setTargetUserId] = useState<string>(currentUser?.id || '');
   const activeSubjectUser = allUsers.find((u) => u.id === targetUserId) || currentUser;
+
+  const { mobileReachStatus } = useData();
+
+  // Carrier-verified Fiber Volt statistics for the displayed user
+  const activeRepFiberVoltStats = useMemo(() => {
+    if (!activeSubjectUser) {
+      return {
+        week: { deals: 0, installs: 0, rank: null as number | null },
+        month: { deals: 0, installs: 0, rank: null as number | null },
+        allTime: { deals: 0, installs: 0, rank: null as number | null },
+      };
+    }
+
+    const findMr = (key: 'week' | 'month' | 'all') => {
+      const list = mobileReachStatus?.leaderboard?.[key] || [];
+      const idx = list.findIndex(
+        (m) =>
+          m.full_name.toLowerCase() === activeSubjectUser.displayName.toLowerCase() ||
+          (m.full_name.toLowerCase().includes(activeSubjectUser.lastName.toLowerCase()) &&
+            m.full_name.toLowerCase().includes(activeSubjectUser.firstName.toLowerCase()))
+      );
+      if (idx !== -1) {
+        return { deals: list[idx].sales, installs: list[idx].installs, rank: idx + 1 };
+      }
+      return null;
+    };
+
+    const mrWeek = findMr('week');
+    const mrMonth = findMr('month');
+    const mrAll = findMr('all');
+
+    return {
+      week: {
+        deals: mrWeek ? mrWeek.deals : activeSubjectUser.stats?.weekDeals ?? 0,
+        installs: mrWeek ? mrWeek.installs : activeSubjectUser.stats?.weekInstalls ?? 0,
+        rank: mrWeek?.rank ?? null,
+      },
+      month: {
+        deals: mrMonth ? mrMonth.deals : activeSubjectUser.stats?.monthDeals ?? 0,
+        installs: mrMonth ? mrMonth.installs : activeSubjectUser.stats?.monthInstalls ?? 0,
+        rank: mrMonth?.rank ?? null,
+      },
+      allTime: {
+        deals: mrAll ? mrAll.deals : activeSubjectUser.stats?.allTimeDeals ?? 0,
+        installs: mrAll ? mrAll.installs : activeSubjectUser.stats?.allTimeInstalls ?? 0,
+        rank: mrAll?.rank ?? null,
+      },
+    };
+  }, [activeSubjectUser, mobileReachStatus]);
 
   // Profile Form States
   const [firstName, setFirstName] = useState(activeSubjectUser?.firstName || '');
@@ -249,7 +302,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
   };
 
   return (
-    <div className="p-2.5 sm:p-3 max-w-5xl mx-auto space-y-3 pb-24">
+    <div className="p-2.5 sm:p-3 max-w-5xl mx-auto space-y-3 pb-32 sm:pb-28">
       {/* Top Banner & Quick Badge View */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(20,27,46,0.7),rgba(15,23,42,0.96))] p-3 sm:p-3.5 rounded-2xl border border-emerald-500/15 shadow-[0_14px_30px_rgba(2,6,23,0.22)] ring-1 ring-emerald-500/10">
         <div className="flex items-center gap-3 sm:gap-4">
@@ -326,6 +379,103 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
           </select>
         </div>
       )}
+
+      {/* Carrier-Verified Fiber Volt Production Record Card */}
+      <div className="bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(5,47,38,0.7),rgba(15,23,42,0.96))] border border-emerald-500/30 rounded-3xl p-4 sm:p-5 shadow-xl relative overflow-hidden ring-1 ring-emerald-500/15">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-md shadow-emerald-500/10">
+              <Zap className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white">Fiber Volt Official Carrier Sync</span>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] bg-emerald-950 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30 font-semibold">
+                  Carrier Live
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Official deal volume and confirmed dispatch installations for {activeSubjectUser?.displayName}
+              </p>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+            Rep ID: <span className="text-emerald-400 font-bold">{activeSubjectUser?.id}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+          {/* This Week */}
+          <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 uppercase font-bold">
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                This Week
+              </span>
+              {activeRepFiberVoltStats.week.rank && (
+                <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/30 text-[10px]">
+                  Rank #{activeRepFiberVoltStats.week.rank}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white">{activeRepFiberVoltStats.week.deals} Deals</span>
+              <span className="text-sm font-bold text-emerald-400">{activeRepFiberVoltStats.week.installs} Installs</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1 font-mono">
+              Install rate: {activeRepFiberVoltStats.week.deals > 0 ? Math.round((activeRepFiberVoltStats.week.installs / activeRepFiberVoltStats.week.deals) * 100) : 0}%
+            </p>
+          </div>
+
+          {/* This Month */}
+          <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 uppercase font-bold">
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                This Month
+              </span>
+              {activeRepFiberVoltStats.month.rank && (
+                <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/30 text-[10px]">
+                  Rank #{activeRepFiberVoltStats.month.rank}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white">{activeRepFiberVoltStats.month.deals} Deals</span>
+              <span className="text-sm font-bold text-emerald-400">{activeRepFiberVoltStats.month.installs} Installs</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1 font-mono">
+              Install rate: {activeRepFiberVoltStats.month.deals > 0 ? Math.round((activeRepFiberVoltStats.month.installs / activeRepFiberVoltStats.month.deals) * 100) : 0}%
+            </p>
+          </div>
+
+          {/* All-Time */}
+          <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 uppercase font-bold">
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                All-Time
+              </span>
+              {activeRepFiberVoltStats.allTime.rank && (
+                <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/30 text-[10px]">
+                  Rank #{activeRepFiberVoltStats.allTime.rank}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white">{activeRepFiberVoltStats.allTime.deals} Deals</span>
+              <span className="text-sm font-bold text-emerald-400">{activeRepFiberVoltStats.allTime.installs} Installs</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1 font-mono">
+              Install rate: {activeRepFiberVoltStats.allTime.deals > 0 ? Math.round((activeRepFiberVoltStats.allTime.installs / activeRepFiberVoltStats.allTime.deals) * 100) : 0}%
+            </p>
+          </div>
+        </div>
+      </div>
 
       {savedSuccessMsg && (
         <div className="p-3.5 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-emerald-300 text-xs font-bold text-center flex items-center justify-center gap-2 animate-in fade-in">
