@@ -57,7 +57,14 @@ interface AuthContextType {
   // Account Approval Governance
   approveUser: (targetUserId: string, role?: UserRole, title?: string) => Promise<boolean>;
   rejectUser: (targetUserId: string, reason?: string) => Promise<boolean>;
-  preApproveEmail: (email: string, role?: UserRole, title?: string, firstName?: string, lastName?: string) => Promise<boolean>;
+  preApproveEmail: (
+    email: string,
+    role?: UserRole,
+    title?: string,
+    firstName?: string,
+    lastName?: string,
+    additionalProfile?: Partial<UserProfile>
+  ) => Promise<boolean>;
   refreshCurrentUserProfile: () => Promise<void>;
   pendingApprovalsCount: number;
   // Role Management Functions
@@ -1070,7 +1077,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole = 'Representative',
     title = 'Fiber Field Specialist',
     firstName = 'Authorized',
-    lastName = 'Specialist'
+    lastName = 'Specialist',
+    additionalProfile?: Partial<UserProfile>
   ): Promise<boolean> => {
     if (!isAdmin) {
       alert('RBAC Access Denied: Only Admins can pre-authorize users.');
@@ -1083,29 +1091,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    const newId = `user_pre_${Date.now()}`;
+    const newId = additionalProfile?.id || `user_pre_${Date.now()}`;
     const preApprovedUser: UserProfile = {
       id: newId,
-      email,
-      firstName,
-      lastName,
-      displayName: `${firstName} ${lastName}`.trim(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      displayName: additionalProfile?.displayName || `${firstName} ${lastName}`.trim(),
       role,
-      title,
-      approvalStatus: 'approved',
+      title: title.trim(),
       approvedBy: currentUser?.displayName || 'Gurpreet Multani (Admin)',
       approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      createdAt: additionalProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      dateOfBirth: '1998-01-01',
-      shirtSize: 'L',
-      phone: '(555) 000-0000',
-      emergencyContact: {
+      dateOfBirth: additionalProfile?.dateOfBirth || '1998-01-01',
+      shirtSize: additionalProfile?.shirtSize || 'L',
+      phone: additionalProfile?.phone || '(555) 000-0000',
+      badgePhotoUrl: additionalProfile?.badgePhotoUrl,
+      idPhotoUrl: additionalProfile?.idPhotoUrl,
+      emergencyContact: additionalProfile?.emergencyContact || {
         name: 'Primary Contact',
         phone: '(555) 000-0000',
         relationship: 'Family',
       },
-      directDeposit: {
+      directDeposit: additionalProfile?.directDeposit || {
         bankName: 'Pending Setup',
         accountNumber: '••••••••0000',
         routingNumber: '000000000',
@@ -1113,24 +1121,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         taxIdType: 'SSN',
         taxIdNumber: 'XXX-XX-0000',
       },
-      fiberAgreement: {
-        status: 'pending',
+      fiberAgreement: additionalProfile?.fiberAgreement || {
+        status: 'signed',
+        signedDate: new Date().toISOString().slice(0, 10),
         version: 'v2026.2',
       },
-      travelProfile: {
+      travelProfile: additionalProfile?.travelProfile || {
         homeAirport: 'DFW - Dallas/Fort Worth',
         ableToTravel: true,
         smsTravelUpdatesConsent: true,
       },
-      payRates: {
-        'AT&T Fiber': 250,
-        'Frontier Fiber': 270,
-        'Quantum Fiber': 240,
-        'Brightspeed': 220,
-        'Spectrum Gig': 210,
-        'Kinetic Fiber': 230,
+      payRates: additionalProfile?.payRates || {
+        'Sparklight Fiber': 320,
+        'T-Mobile Fiber': 320,
+        'AT&T Fiber': 290,
+        'Frontier Fiber': 310,
+        'Quantum Fiber': 280,
+        'Brightspeed': 260,
+        'Spectrum Gig': 250,
+        'Kinetic Fiber': 270,
       },
-      stats: {
+      stats: additionalProfile?.stats || {
         installs: 0,
         cancels: 0,
         scheduled: 0,
@@ -1140,9 +1151,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cancelRate: 0,
         totalCommission: 0,
       },
+      managerId: additionalProfile?.managerId || 'user_mgr_marcus',
+      managerName: additionalProfile?.managerName || 'Marcus Vance',
+      ...additionalProfile,
+      approvalStatus: 'approved',
+      email,
     };
 
-    setUsers((prev) => [preApprovedUser, ...prev.filter((u) => u.email.toLowerCase() !== email)]);
+    setUsers((prev) => [preApprovedUser, ...prev.filter((u) => u.email.toLowerCase() !== email && u.id !== newId)]);
 
     try {
       await setDoc(doc(db, 'users', newId), preApprovedUser);

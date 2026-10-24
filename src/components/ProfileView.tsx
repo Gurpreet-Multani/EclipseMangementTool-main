@@ -29,14 +29,16 @@ import {
   TrendingUp,
   Trophy,
   Zap,
+  UserPlus,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ProfileViewProps {
   onOpenBadgeModal: () => void;
+  onOpenApprovals?: (tab?: 'pending' | 'preapprove' | 'active') => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOpenApprovals }) => {
   const {
     currentUser,
     allUsers,
@@ -366,17 +368,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal }) =>
               </span>
             </div>
           </div>
-          <select
-            value={targetUserId}
-            onChange={(e) => handleSelectUserToEdit(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-cyan-500 shrink-0"
-          >
-            {allUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.displayName} ({u.role?.toUpperCase()}) — {u.title}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {isAdmin && onOpenApprovals && (
+              <button
+                type="button"
+                onClick={() => onOpenApprovals('preapprove')}
+                className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                title="Create a new account or pre-approve a user from Fiber Volt"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Add / Pre-Approve</span>
+              </button>
+            )}
+            <select
+              value={targetUserId}
+              onChange={(e) => handleSelectUserToEdit(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-cyan-500 shrink-0"
+            >
+              {allUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.displayName} ({u.role?.toUpperCase()}) — {u.title}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 

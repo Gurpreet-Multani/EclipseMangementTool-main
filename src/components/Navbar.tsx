@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Clock,
   UserCheck,
+  UserPlus,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -27,7 +28,7 @@ interface NavbarProps {
   onOpenMessaging: () => void;
   onOpenPendingReviews: () => void;
   onOpenCompletedCourses: () => void;
-  onOpenApprovals: () => void;
+  onOpenApprovals: (tab?: 'pending' | 'preapprove' | 'active') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -250,7 +251,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Account Approvals Button for Admin */}
           {(isAdmin || actualIsAdmin) && isButtonVisible('account_approvals') && (
             <button
-              onClick={isButtonDisabled('account_approvals') ? undefined : onOpenApprovals}
+              onClick={isButtonDisabled('account_approvals') ? undefined : () => onOpenApprovals('pending')}
               disabled={isButtonDisabled('account_approvals')}
               className={`hidden sm:flex relative p-2.5 rounded-xl border transition-all shadow-md ${
                 isButtonDisabled('account_approvals')
@@ -466,23 +467,41 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <div className="p-1.5 bg-slate-950/40 space-y-0.5">
                   {isAdmin && (
-                    <button
-                      onClick={() => {
-                        onOpenApprovals();
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Manage Account Approvals</span>
-                      </div>
-                      {pendingApprovalsCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
-                          {pendingApprovalsCount}
+                    <>
+                      <button
+                        onClick={() => {
+                          onOpenApprovals();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-slate-800 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Manage Account Approvals</span>
+                        </div>
+                        {pendingApprovalsCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                            {pendingApprovalsCount}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          onOpenApprovals('preapprove');
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-emerald-300 hover:text-emerald-200 hover:bg-slate-800 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>+ Create / Pre-Approve User</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Fiber Volt
                         </span>
-                      )}
-                    </button>
+                      </button>
+                    </>
                   )}
 
                   {(isAdmin || actualIsAdmin) && isButtonVisible('role_manager') && (

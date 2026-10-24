@@ -34,6 +34,12 @@ const MainAppContent: React.FC = () => {
   const [showPendingReviewsModal, setShowPendingReviewsModal] = useState<boolean>(false);
   const [showCompletedCoursesModal, setShowCompletedCoursesModal] = useState<boolean>(false);
   const [showApprovalsModal, setShowApprovalsModal] = useState<boolean>(false);
+  const [approvalsModalInitialTab, setApprovalsModalInitialTab] = useState<'pending' | 'preapprove' | 'active'>('pending');
+
+  const handleOpenApprovals = (tab: 'pending' | 'preapprove' | 'active' = 'pending') => {
+    setApprovalsModalInitialTab(tab);
+    setShowApprovalsModal(true);
+  };
 
   const handleOpenNewSale = (mode: 'manual' | 'scan' = 'manual') => {
     setNewSaleInitialMode(mode);
@@ -116,7 +122,7 @@ const MainAppContent: React.FC = () => {
           onOpenMessaging={() => handleOpenMessaging()}
           onOpenPendingReviews={() => setShowPendingReviewsModal(true)}
           onOpenCompletedCourses={() => setShowCompletedCoursesModal(true)}
-          onOpenApprovals={() => setShowApprovalsModal(true)}
+          onOpenApprovals={(tab) => handleOpenApprovals(tab || 'pending')}
         />
 
         {/* Tab Views */}
@@ -134,7 +140,10 @@ const MainAppContent: React.FC = () => {
           )}
           {currentTab === 'training' && <TrainingView />}
           {currentTab === 'profile' && (
-            <ProfileView onOpenBadgeModal={() => setShowBadgeModal(true)} />
+            <ProfileView
+              onOpenBadgeModal={() => setShowBadgeModal(true)}
+              onOpenApprovals={(tab) => handleOpenApprovals(tab || 'preapprove')}
+            />
           )}
         </main>
 
@@ -211,7 +220,10 @@ const MainAppContent: React.FC = () => {
 
         {/* Access Approvals & Whitelist Modal */}
         {showApprovalsModal && (
-          <AccessApprovalsModal onClose={() => setShowApprovalsModal(false)} />
+          <AccessApprovalsModal
+            onClose={() => setShowApprovalsModal(false)}
+            initialTab={approvalsModalInitialTab}
+          />
         )}
         </div>
       </div>

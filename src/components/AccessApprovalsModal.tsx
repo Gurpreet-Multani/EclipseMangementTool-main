@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types';
+import { useData } from '../context/DataContext';
+import { UserRole, UserProfile } from '../types';
+import {
+  getAllFiberVoltReps,
+  buildUserProfileFromFiberVolt,
+  FiberVoltRepOption,
+} from '../lib/fiberVoltUsers';
 import {
   X,
   UserCheck,
@@ -15,19 +21,34 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
-  Shield,
   Trash2,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Sparkles,
+  Phone,
+  Plane,
+  RotateCcw,
+  ShieldCheck,
+  Check,
+  Trophy,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 interface AccessApprovalsModalProps {
   onClose: () => void;
+  initialTab?: 'pending' | 'preapprove' | 'active';
 }
 
-export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onClose }) => {
+export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
+  onClose,
+  initialTab = 'pending',
+}) => {
   const { users, approveUser, rejectUser, preApproveEmail, currentUser } = useAuth();
+  const { mobileReachStatus } = useData();
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'preapprove' | 'active'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'preapprove' | 'active'>(initialTab);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
@@ -42,15 +63,36 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
   // Bulk role for pending batch approval
   const [bulkPendingRole, setBulkPendingRole] = useState<UserRole>('Representative');
 
-  // Pre-approve form state
+  // --- Fiber Volt Porting & Pre-Approve Form State ---
+  const fiberVoltReps = useMemo(() => getAllFiberVoltReps(mobileReachStatus), [mobileReachStatus]);
+  const [selectedVoltRep, setSelectedVoltRep] = useState<FiberVoltRepOption | null>(null);
+  const [isVoltDropdownOpen, setIsVoltDropdownOpen] = useState(false);
+  const [voltSearchQuery, setVoltSearchQuery] = useState('');
+  const [submittingPreApprove, setSubmittingPreApprove] = useState(false);
+
   const [preApproveForm, setPreApproveForm] = useState({
     email: '',
     firstName: '',
     lastName: '',
-    role: 'Representative' as UserRole,
-    title: 'Fiber Field Specialist',
+    phone: '',
+    homeAirport: 'PHX - Phoenix Sky Harbor',
+    role: 'Field Sales Representative' as UserRole,
+    title: 'Level 1 Field Sales Representative',
+    managerId: 'user_mgr_marcus',
+    includeVoltStats: true,
   });
-  const [submittingPreApprove, setSubmittingPreApprove] = useState(false);
+
+  // Filtered Fiber Volt reps for dropdown
+  const filteredVoltReps = useMemo(() => {
+    if (!voltSearchQuery.trim()) return fiberVoltReps;
+    const q = voltSearchQuery.toLowerCase();
+    return fiberVoltReps.filter(
+      (r) =>
+        r.fullName.toLowerCase().includes(q) ||
+        r.role.toLowerCase().includes(q) ||
+        r.topCarriers.some((c) => c.toLowerCase().includes(q))
+    );
+  }, [fiberVoltReps, voltSearchQuery]);
 
   // Separate users by approval status
   const pendingUsers = users.filter((u) => u.approvalStatus === 'pending');
@@ -67,6 +109,42 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
       u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Handle selecting a rep from Fiber Volt dropdown
+  const handleSelectVoltRep = (rep: FiberVoltRepOption) => {
+    setSelectedVoltRep(rep);
+    setPreApproveForm({
+      firstName: rep.firstName,
+      lastName: rep.lastName,
+      email: rep.email,
+      phone: rep.phone,
+      homeAirport: rep.homeAirport,
+      role: rep.role,
+      title: rep.title,
+      managerId: 'user_mgr_marcus',
+      includeVoltStats: true,
+    });
+    setIsVoltDropdownOpen(false);
+    setActionNotice({
+      type: 'success',
+      message: `Ported ${rep.fullName} from Fiber Volt! Verified production: ${rep.sales} sales, ${rep.installs} installs.`,
+    });
+  };
+
+  const handleClearVoltSelection = () => {
+    setSelectedVoltRep(null);
+    setPreApproveForm({
+      email: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      homeAirport: 'PHX - Phoenix Sky Harbor',
+      role: 'Field Sales Representative',
+      title: 'Level 1 Field Sales Representative',
+      managerId: 'user_mgr_marcus',
+      includeVoltStats: true,
+    });
+  };
 
   // --- Bulk Checkbox Handlers for Pending Requests ---
   const isAllPendingSelected =
@@ -97,7 +175,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
   };
 
   // --- Bulk Checkbox Handlers for Active Directory ---
-  // Founder / Current User cannot have access revoked in bulk
   const revokableActiveUsers = filteredApproved.filter(
     (u) => !u.email.toLowerCase().includes('gurpreet') && u.id !== currentUser?.id
   );
@@ -129,7 +206,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
     });
   };
 
-  // --- Single User Actions ---
+  // Single approve
   const handleApprove = async (userId: string) => {
     setActionNotice(null);
     const roleToAssign = selectedRoles[userId] || 'Field Sales Representative';
@@ -158,6 +235,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
     }
   };
 
+  // Single reject
   const handleReject = async (userId: string) => {
     setActionNotice(null);
     const success = await rejectUser(userId, 'Declined by Administrator');
@@ -178,7 +256,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
     }
   };
 
-  // --- Bulk Actions for Pending Tab ---
+  // Bulk actions for pending
   const handleBulkApprovePending = async () => {
     if (selectedPendingIds.size === 0) return;
     setActionNotice(null);
@@ -245,7 +323,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
     });
   };
 
-  // --- Bulk Action for Active Directory Tab ---
+  // Bulk Revoke for Active Directory
   const handleBulkRevokeActive = async () => {
     if (selectedActiveIds.size === 0) return;
     if (
@@ -275,33 +353,80 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
     });
   };
 
+  // Pre-Approve & Account Creation Submit
   const handlePreApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionNotice(null);
     setSubmittingPreApprove(true);
+
+    const assignedManager = users.find((u) => u.id === preApproveForm.managerId);
+
+    // Build payload either with ported Fiber Volt data or manual inputs
+    let additionalProfile: Partial<UserProfile> | undefined;
+    if (selectedVoltRep && preApproveForm.includeVoltStats) {
+      additionalProfile = buildUserProfileFromFiberVolt(selectedVoltRep, {
+        email: preApproveForm.email,
+        role: preApproveForm.role,
+        title: preApproveForm.title,
+        phone: preApproveForm.phone,
+        managerId: preApproveForm.managerId,
+        managerName: assignedManager?.displayName || 'Marcus Vance',
+      });
+    } else {
+      additionalProfile = {
+        phone: preApproveForm.phone || '(555) 000-0000',
+        travelProfile: {
+          homeAirport: preApproveForm.homeAirport || 'PHX - Phoenix Sky Harbor',
+          ableToTravel: true,
+          smsTravelUpdatesConsent: true,
+        },
+        managerId: preApproveForm.managerId,
+        managerName: assignedManager?.displayName || 'Marcus Vance',
+      };
+    }
 
     const success = await preApproveEmail(
       preApproveForm.email,
       preApproveForm.role,
       preApproveForm.title,
       preApproveForm.firstName,
-      preApproveForm.lastName
+      preApproveForm.lastName,
+      additionalProfile
     );
 
     if (success) {
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.6 },
+        });
+      } catch {
+        // Safe confetti fallback
+      }
+
       setActionNotice({
         type: 'success',
-        message: `Account for ${preApproveForm.email} is pre-authorized! When they sign in with Google, they will get instant access.`,
+        message: `Account for ${preApproveForm.firstName} ${preApproveForm.lastName} (${preApproveForm.email}) is created and pre-approved! ${
+          selectedVoltRep ? `Ported ${selectedVoltRep.sales} sales & ${selectedVoltRep.installs} installs from Fiber Volt.` : ''
+        }`,
       });
+
+      // Reset form
+      setSelectedVoltRep(null);
       setPreApproveForm({
         email: '',
         firstName: '',
         lastName: '',
-        role: 'Representative',
-        title: 'Fiber Field Specialist',
+        phone: '',
+        homeAirport: 'PHX - Phoenix Sky Harbor',
+        role: 'Field Sales Representative',
+        title: 'Level 1 Field Sales Representative',
+        managerId: 'user_mgr_marcus',
+        includeVoltStats: true,
       });
     } else {
-      setActionNotice({ type: 'error', message: 'Failed to pre-authorize account.' });
+      setActionNotice({ type: 'error', message: 'Failed to create and pre-authorize account.' });
     }
 
     setSubmittingPreApprove(false);
@@ -326,10 +451,10 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-            Google Account Access & Approval Control
+            User Access, Pre-Approvals & Fiber Volt Port
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Control exactly who can log into the Eclipse platform. Unapproved users are blocked at the gate.
+            Create and pre-approve user accounts, review pending sign-in requests, or port team member profiles directly from Fiber Volt.
           </p>
         </div>
 
@@ -347,12 +472,21 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
             ) : (
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
             )}
-            <span className="font-medium">{actionNotice.message}</span>
+            <span className="font-medium flex-1">{actionNotice.message}</span>
+            {actionNotice.type === 'success' && activeTab === 'preapprove' && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('active')}
+                className="text-[11px] underline font-bold text-emerald-400 hover:text-emerald-300 ml-2"
+              >
+                View Active Directory →
+              </button>
+            )}
           </div>
         )}
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 gap-2">
+        <div className="flex border-b border-slate-800 text-xs gap-2">
           <button
             onClick={() => setActiveTab('pending')}
             className={`pb-3 px-3 text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer ${
@@ -379,7 +513,11 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>Pre-Approve Google Email</span>
+            <span>Create / Pre-Approve User</span>
+            <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-0.5">
+              <Zap className="w-2.5 h-2.5 fill-cyan-400" />
+              Fiber Volt
+            </span>
           </button>
 
           <button
@@ -398,7 +536,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
         {/* TAB 1: PENDING APPROVAL REQUESTS */}
         {activeTab === 'pending' && (
           <div className="space-y-3.5">
-            {/* Search Bar & Header */}
             <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
               <div className="relative flex-1">
                 <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -416,9 +553,8 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
               </span>
             </div>
 
-            {/* Bulk Selection Action Bar for Pending Requests */}
             {filteredPending.length > 0 && (
-              <div className="bg-slate-950 p-3 rounded-2xl border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <button
                     type="button"
@@ -435,7 +571,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                     <span>
                       {selectedPendingIds.size > 0
                         ? `${selectedPendingIds.size} Selected`
-                        : 'Select All'}
+                        : 'Select All Pending'}
                     </span>
                   </button>
 
@@ -445,51 +581,50 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                       onClick={() => setSelectedPendingIds(new Set())}
                       className="text-[11px] text-slate-500 hover:text-slate-300 underline cursor-pointer"
                     >
-                      Deselect
+                      Clear
                     </button>
                   )}
                 </div>
 
-                {/* Bulk Actions Controls */}
                 {selectedPendingIds.size > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-xl px-2 py-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Role:</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-400">Batch Role:</span>
                       <select
                         value={bulkPendingRole}
                         onChange={(e) => setBulkPendingRole(e.target.value as UserRole)}
-                        className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer"
+                        className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                       >
-                        <option value="Field Sales Representative" className="bg-slate-900 text-white">Level 1: Field Sales Rep</option>
-                        <option value="Corporate Trainer" className="bg-slate-900 text-white">Level 2: Corporate Trainer</option>
-                        <option value="Team Lead" className="bg-slate-900 text-white">Level 3: Team Lead</option>
-                        <option value="Blitz Manager" className="bg-slate-900 text-white">Blitz Manager</option>
-                        <option value="Regional Director" className="bg-slate-900 text-white">Regional Director</option>
+                        <option value="Representative">Field Sales Rep</option>
+                        <option value="Team Lead">Team Lead</option>
+                        <option value="Corporate Trainer">Corporate Trainer</option>
+                        <option value="Manager">Blitz Manager</option>
+                        <option value="Admin">Administrator</option>
                       </select>
                     </div>
 
                     <button
                       type="button"
                       disabled={isProcessingBulk}
-                      onClick={handleBulkDenyPending}
-                      className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <UserX className="w-3.5 h-3.5" />
-                      <span>Bulk Deny ({selectedPendingIds.size})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={isProcessingBulk}
                       onClick={handleBulkApprovePending}
-                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       {isProcessingBulk ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <UserCheck className="w-3.5 h-3.5" />
                       )}
-                      <span>Bulk Approve ({selectedPendingIds.size})</span>
+                      <span>Approve ({selectedPendingIds.size})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isProcessingBulk}
+                      onClick={handleBulkDenyPending}
+                      className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <UserX className="w-3.5 h-3.5" />
+                      <span>Deny</span>
                     </button>
                   </div>
                 )}
@@ -519,7 +654,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          {/* Checkbox */}
                           <button
                             type="button"
                             onClick={() => handleTogglePendingUser(user.id)}
@@ -567,7 +701,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                         </div>
                       </div>
 
-                      {/* Role selection & approval actions */}
                       <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <label className="text-[11px] font-semibold text-slate-400">
@@ -619,17 +752,277 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
           </div>
         )}
 
-        {/* TAB 2: PRE-APPROVE GOOGLE EMAIL */}
+        {/* TAB 2: CREATE / PRE-APPROVE USER & FIBER VOLT PORT */}
         {activeTab === 'preapprove' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-1 text-xs text-emerald-200">
-              <p className="font-bold">How Pre-Approval Works:</p>
-              <p className="text-slate-300 leading-relaxed text-[11px]">
-                Add your team member's Google email here in advance. When they click "Continue with Google" or type their email on the login screen, they are automatically recognized as an authorized team member and bypass the pending gate.
-              </p>
+            {/* Fiber Volt Port Dropdown Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/30 border border-cyan-500/30 space-y-3 relative">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                    <Zap className="w-4 h-4 fill-cyan-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white flex items-center gap-1.5">
+                      <span>Port from Fiber Volt (MobileReach Cloud)</span>
+                      <span className="text-[10px] font-semibold text-cyan-400">· {fiberVoltReps.length} Reps Available</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Select a carrier-verified representative to auto-populate their profile, verified sales metrics, and tier.
+                    </p>
+                  </div>
+                </div>
+
+                {selectedVoltRep && (
+                  <button
+                    type="button"
+                    onClick={handleClearVoltSelection}
+                    className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Clear Ported Data</span>
+                  </button>
+                )}
+              </div>
+
+              {/* The Dropdown Arrow Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsVoltDropdownOpen(!isVoltDropdownOpen)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl bg-slate-950 border transition-all text-left cursor-pointer ${
+                    isVoltDropdownOpen
+                      ? 'border-cyan-400 ring-2 ring-cyan-500/20'
+                      : selectedVoltRep
+                      ? 'border-cyan-500/60 bg-cyan-950/20'
+                      : 'border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {selectedVoltRep ? (
+                      <img
+                        src={selectedVoltRep.badgePhotoUrl}
+                        alt=""
+                        className="w-7 h-7 rounded-lg object-cover ring-1 ring-cyan-400 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      {selectedVoltRep ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white truncate">
+                            {selectedVoltRep.fullName}
+                          </span>
+                          <span className="text-[10px] font-bold text-cyan-400 px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 shrink-0">
+                            Rank #{selectedVoltRep.rank}
+                          </span>
+                          <span className="text-[11px] text-slate-400 truncate hidden sm:inline">
+                            · {selectedVoltRep.sales} Sales · {selectedVoltRep.installs} Installs
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 font-medium">
+                          Click to select a Fiber Volt / MobileReach representative to port...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-slate-400 shrink-0 ml-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 hidden sm:inline">
+                      {isVoltDropdownOpen ? 'Close Menu' : 'Select Rep'}
+                    </span>
+                    {isVoltDropdownOpen ? (
+                      <ChevronUp className="w-4 h-4 text-cyan-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-cyan-400" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Dropdown Menu Container */}
+                {isVoltDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-950 border border-cyan-500/40 rounded-2xl shadow-2xl p-3 space-y-2 max-h-80 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                    {/* Search inside Dropdown */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search by rep name, role, or carrier..."
+                        value={voltSearchQuery}
+                        onChange={(e) => setVoltSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
+
+                    {/* Quick Core Rep Highlights */}
+                    {!voltSearchQuery && (
+                      <div className="pt-1 pb-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 block mb-1.5">
+                          ⭐ Featured Phoenix & DFW Fiber Leaders
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {fiberVoltReps.slice(0, 4).map((r) => (
+                            <button
+                              key={`feat_${r.id}`}
+                              type="button"
+                              onClick={() => handleSelectVoltRep(r)}
+                              className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 hover:bg-cyan-950/30 border border-slate-800/80 hover:border-cyan-500/40 text-left transition-all cursor-pointer group"
+                            >
+                              <img
+                                src={r.badgePhotoUrl}
+                                alt=""
+                                className="w-8 h-8 rounded-lg object-cover ring-1 ring-cyan-500/30 shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">
+                                    {r.fullName}
+                                  </span>
+                                  <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1 rounded shrink-0">
+                                    #{r.rank}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 block truncate">
+                                  {r.sales} Deals · {r.installs} Installs
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Full List of Reps */}
+                    <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 block mb-1">
+                        All Fiber Volt Representatives ({filteredVoltReps.length})
+                      </span>
+
+                      {filteredVoltReps.length === 0 ? (
+                        <p className="text-xs text-slate-500 text-center py-4">
+                          No representatives match "{voltSearchQuery}".
+                        </p>
+                      ) : (
+                        filteredVoltReps.map((r) => {
+                          const isCurrent = selectedVoltRep?.id === r.id;
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => handleSelectVoltRep(r)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-cyan-500/20 border border-cyan-400/50'
+                                  : 'hover:bg-slate-900 border border-transparent hover:border-slate-800'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <img
+                                  src={r.badgePhotoUrl}
+                                  alt=""
+                                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-slate-700 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-white truncate">
+                                      {r.fullName}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-slate-400 truncate">
+                                      · {r.role}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                    <span>Rank #{r.rank}</span>
+                                    <span>·</span>
+                                    <span>{r.sales} Deals</span>
+                                    <span>·</span>
+                                    <span className="text-emerald-400">{r.installs} Installs</span>
+                                    <span>·</span>
+                                    <span>{r.topCarriers.join(', ')}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 text-right shrink-0 ml-2">
+                                {isCurrent ? (
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-cyan-400">
+                                    <Check className="w-3.5 h-3.5" /> Ported
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-semibold text-slate-400 group-hover:text-cyan-400">
+                                    Port →
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Verified Ported Metric Summary Banner */}
+              {selectedVoltRep && (
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-cyan-500/20 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-1">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-cyan-300">
+                        ⚡ Porting Fiber Volt Carrier Records for {selectedVoltRep.fullName}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Rank #{selectedVoltRep.rank} Nationwide · Verified by MobileReach Cloud
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 font-mono text-[11px]">
+                    <div className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-slate-400 text-[10px] block">Sales:</span>
+                      <span className="text-white font-bold">{selectedVoltRep.sales}</span>
+                    </div>
+                    <div className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-slate-400 text-[10px] block">Installs:</span>
+                      <span className="text-emerald-400 font-bold">{selectedVoltRep.installs}</span>
+                    </div>
+                    <div className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-slate-400 text-[10px] block">Install %:</span>
+                      <span className="text-cyan-300 font-bold">{selectedVoltRep.installRate}%</span>
+                    </div>
+                    <div className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-slate-400 text-[10px] block">Est. Comm:</span>
+                      <span className="text-emerald-400 font-bold">
+                        ${selectedVoltRep.commission.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Account Details & Pre-Approval Form */}
             <form onSubmit={handlePreApproveSubmit} className="space-y-3.5 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Account Profile & Pre-Approval Details
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {selectedVoltRep ? 'Fields Auto-Filled from Fiber Volt' : 'Manual Entry or Select Rep Above'}
+                </span>
+              </div>
+
+              {/* Name Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 block mb-1">
@@ -638,7 +1031,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                   <input
                     type="text"
                     required
-                    placeholder="e.g. John"
+                    placeholder="e.g. Isaac"
                     value={preApproveForm.firstName}
                     onChange={(e) =>
                       setPreApproveForm((prev) => ({ ...prev, firstName: e.target.value }))
@@ -654,7 +1047,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Doe"
+                    placeholder="e.g. Garza"
                     value={preApproveForm.lastName}
                     onChange={(e) =>
                       setPreApproveForm((prev) => ({ ...prev, lastName: e.target.value }))
@@ -664,25 +1057,47 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">
-                  Google Workspace / Account Email
-                </label>
-                <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="rep@eclipsemarketingagency.org or rep@gmail.com"
-                    value={preApproveForm.email}
-                    onChange={(e) =>
-                      setPreApproveForm((prev) => ({ ...prev, email: e.target.value }))
-                    }
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
+              {/* Email & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Google Workspace / Login Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="rep@eclipsemarketingagency.org or rep@gmail.com"
+                      value={preApproveForm.email}
+                      onChange={(e) =>
+                        setPreApproveForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="(480) 555-0199"
+                      value={preApproveForm.phone}
+                      onChange={(e) =>
+                        setPreApproveForm((prev) => ({ ...prev, phone: e.target.value }))
+                      }
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Role & Title */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 block mb-1">
@@ -732,13 +1147,100 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                 </div>
               </div>
 
+              {/* Home Airport & Manager */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Home Airport / Travel Base
+                  </label>
+                  <div className="relative">
+                    <Plane className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <select
+                      value={preApproveForm.homeAirport}
+                      onChange={(e) =>
+                        setPreApproveForm((prev) => ({ ...prev, homeAirport: e.target.value }))
+                      }
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="PHX - Phoenix Sky Harbor">PHX - Phoenix Sky Harbor</option>
+                      <option value="DFW - Dallas/Fort Worth">DFW - Dallas/Fort Worth</option>
+                      <option value="ATL - Hartsfield-Jackson Atlanta">ATL - Hartsfield-Jackson Atlanta</option>
+                      <option value="ORD - Chicago O'Hare">ORD - Chicago O'Hare</option>
+                      <option value="DEN - Denver International">DEN - Denver International</option>
+                      <option value="MCI - Kansas City">MCI - Kansas City</option>
+                      <option value="TUS - Tucson International">TUS - Tucson International</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Assigned Upline Manager
+                  </label>
+                  <select
+                    value={preApproveForm.managerId}
+                    onChange={(e) =>
+                      setPreApproveForm((prev) => ({ ...prev, managerId: e.target.value }))
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    {users
+                      .filter((u) => u.role === 'Regional Director' || u.role === 'Blitz Manager' || u.role === 'Team Lead' || u.role === 'Manager')
+                      .map((mgr) => (
+                        <option key={mgr.id} value={mgr.id}>
+                          {mgr.displayName} ({mgr.role})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] font-semibold text-emerald-300">
+                    Pre-Approve Immediately: Granted authorized dashboard access upon Google Sign-In.
+                  </span>
+                </div>
+
+                {selectedVoltRep && (
+                  <label className="flex items-center gap-2 text-[11px] text-cyan-300 font-semibold cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={preApproveForm.includeVoltStats}
+                      onChange={(e) =>
+                        setPreApproveForm((prev) => ({ ...prev, includeVoltStats: e.target.checked }))
+                      }
+                      className="rounded border-slate-700 text-cyan-500 focus:ring-0 cursor-pointer"
+                    />
+                    <span>
+                      Import carrier-verified Fiber Volt metrics ({selectedVoltRep.sales} sales, {selectedVoltRep.installs} installs) into user profile
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={submittingPreApprove}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
               >
-                <UserPlus className="w-4 h-4" />
-                <span>Pre-Approve & Whitelist Account</span>
+                {submittingPreApprove ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : selectedVoltRep ? (
+                  <Zap className="w-4 h-4 fill-slate-950" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                <span>
+                  {submittingPreApprove
+                    ? 'Creating & Pre-Approving Account...'
+                    : selectedVoltRep
+                    ? `Port & Pre-Approve ${selectedVoltRep.fullName}`
+                    : 'Create & Pre-Approve Account'}
+                </span>
               </button>
             </form>
           </div>
@@ -747,7 +1249,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
         {/* TAB 3: ACTIVE DIRECTORY & REVOCATION */}
         {activeTab === 'active' && (
           <div className="space-y-3.5">
-            {/* Search Bar */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -759,7 +1260,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
               />
             </div>
 
-            {/* Bulk Selection Bar for Active Directory */}
             {revokableActiveUsers.length > 0 && (
               <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -793,7 +1293,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                   )}
                 </div>
 
-                {/* Bulk Revoke Button */}
                 {selectedActiveIds.size > 0 && (
                   <button
                     type="button"
@@ -826,7 +1325,6 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({ onCl
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Checkbox only for revokable users */}
                       {!isFounder && !isMe ? (
                         <button
                           type="button"
