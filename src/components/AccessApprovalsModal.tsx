@@ -112,18 +112,17 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
 
   // Separate users by approval status (with newest approved accounts at the top)
   const pendingUsers = uniqueUsers.filter((u) => u.approvalStatus === 'pending');
+  // Display all users in the Cloud Firestore database
   const approvedUsers = useMemo(() => {
-    return uniqueUsers
-      .filter((u) => u.approvalStatus !== 'pending' && u.approvalStatus !== 'rejected')
-      .sort((a, b) => {
-        const isGurpreetA = (a.email || '').toLowerCase().includes('gurpreet');
-        const isGurpreetB = (b.email || '').toLowerCase().includes('gurpreet');
-        if (isGurpreetA) return -1;
-        if (isGurpreetB) return 1;
-        const timeA = new Date(a.approvedAt || a.createdAt || 0).getTime();
-        const timeB = new Date(b.approvedAt || b.createdAt || 0).getTime();
-        return timeB - timeA;
-      });
+    return uniqueUsers.slice().sort((a, b) => {
+      const isGurpreetA = (a.email || '').toLowerCase().includes('gurpreet');
+      const isGurpreetB = (b.email || '').toLowerCase().includes('gurpreet');
+      if (isGurpreetA) return -1;
+      if (isGurpreetB) return 1;
+      const timeA = new Date(a.approvedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.approvedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
   }, [uniqueUsers]);
 
   const filteredPending = pendingUsers.filter(
@@ -608,7 +607,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>Active Team Directory ({approvedUsers.length})</span>
+            <span>Active Team Directory ({uniqueUsers.length})</span>
           </button>
         </div>
 
@@ -1478,20 +1477,47 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-semibold text-slate-300 capitalize px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800">
-                        {u.role}
-                      </span>
+                      {/* Role & Status Badges */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-semibold text-slate-300 capitalize px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800">
+                          {u.role}
+                        </span>
+                        {u.approvalStatus === 'pending' ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            Pending
+                          </span>
+                        ) : u.approvalStatus === 'rejected' ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            Revoked
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            Active
+                          </span>
+                        )}
+                      </div>
 
                       {!isFounder && !isMe && (
                         <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleReject(u.id)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
-                            title="Revoke dashboard access"
-                          >
-                            Revoke
-                          </button>
+                          {u.approvalStatus === 'rejected' || u.approvalStatus === 'pending' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(u.id)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold transition-colors cursor-pointer"
+                              title="Approve / Activate user"
+                            >
+                              Activate
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleReject(u.id)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
+                              title="Revoke dashboard access"
+                            >
+                              Revoke
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setUserToDelete(u)}

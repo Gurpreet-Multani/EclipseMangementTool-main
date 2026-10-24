@@ -154,7 +154,7 @@ export interface UserProfile {
   updatedAt: string;
 }
 
-export type OrderStatus = 'installed' | 'scheduled' | 'cancelled' | 'chargeback' | 'pending';
+export type OrderStatus = 'installed' | 'scheduled' | 'jeopardy' | 'cancelled' | 'chargeback' | 'pending';
 
 export type CustomerSmsType = 'pre_install' | 'day_of_install' | 'post_install_checkup';
 

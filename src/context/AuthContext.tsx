@@ -458,21 +458,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsub = onSnapshot(
       collection(db, 'users'),
       (snap) => {
-        const deleted = getDeletedUserIds();
         const remoteUsers: UserProfile[] = [];
         snap.forEach((docSnap) => {
           const data = docSnap.data() as UserProfile;
           const uid = data.id || docSnap.id;
-          if (!deleted.has(uid) && !deleted.has((data.email || '').toLowerCase())) {
-            remoteUsers.push({
-              ...data,
-              id: uid,
-            });
-          }
+          remoteUsers.push({
+            ...data,
+            id: uid,
+          });
         });
 
         if (remoteUsers.length > 0) {
           setUsers(remoteUsers);
+          try {
+            localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(remoteUsers));
+          } catch {}
         }
       },
       (err) => {
