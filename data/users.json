@@ -7,7 +7,21 @@
     "displayName": "Marcus Miller",
     "role": "Representative",
     "title": "Fiber Specialist",
-    "approvalStatus": "approved"
+    "approvalStatus": "approved",
+    "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
+      "AT&T Fiber": 310,
+      "Frontier Fiber": 330,
+      "Quantum Fiber": 300,
+      "Brightspeed": 280,
+      "Spectrum Gig": 270,
+      "Kinetic Fiber": 290,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
+    }
   },
   {
     "id": "user_owner_gurpreet",
@@ -46,12 +60,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 320,
       "Frontier Fiber": 340,
       "Quantum Fiber": 310,
       "Brightspeed": 290,
       "Spectrum Gig": 280,
-      "Kinetic Fiber": 300
+      "Kinetic Fiber": 300,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 142,
@@ -106,12 +126,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 290,
       "Frontier Fiber": 310,
       "Quantum Fiber": 280,
       "Brightspeed": 260,
       "Spectrum Gig": 250,
-      "Kinetic Fiber": 270
+      "Kinetic Fiber": 270,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 96,
@@ -163,12 +189,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 260,
       "Frontier Fiber": 280,
       "Quantum Fiber": 250,
       "Brightspeed": 230,
       "Spectrum Gig": 220,
-      "Kinetic Fiber": 240
+      "Kinetic Fiber": 240,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 58,
@@ -223,12 +255,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 260,
       "Frontier Fiber": 280,
       "Quantum Fiber": 250,
       "Brightspeed": 230,
       "Spectrum Gig": 220,
-      "Kinetic Fiber": 240
+      "Kinetic Fiber": 240,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 49,
@@ -281,12 +319,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 250,
       "Frontier Fiber": 270,
       "Quantum Fiber": 240,
       "Brightspeed": 220,
       "Spectrum Gig": 210,
-      "Kinetic Fiber": 230
+      "Kinetic Fiber": 230,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 38,
@@ -348,7 +392,11 @@
       "Quantum Fiber": 280,
       "Brightspeed": 260,
       "Spectrum Gig": 250,
-      "Kinetic Fiber": 270
+      "Kinetic Fiber": 270,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 52,
@@ -416,7 +464,11 @@
       "Quantum Fiber": 250,
       "Brightspeed": 230,
       "Spectrum Gig": 220,
-      "Kinetic Fiber": 240
+      "Kinetic Fiber": 240,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 2,
@@ -483,7 +535,11 @@
       "Quantum Fiber": 300,
       "Brightspeed": 280,
       "Spectrum Gig": 270,
-      "Kinetic Fiber": 290
+      "Kinetic Fiber": 290,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 142,
@@ -544,7 +600,11 @@
       "Quantum Fiber": 290,
       "Brightspeed": 270,
       "Spectrum Gig": 260,
-      "Kinetic Fiber": 280
+      "Kinetic Fiber": 280,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 168,
@@ -605,7 +665,11 @@
       "Quantum Fiber": 300,
       "Brightspeed": 280,
       "Spectrum Gig": 270,
-      "Kinetic Fiber": 290
+      "Kinetic Fiber": 290,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 142,
@@ -672,7 +736,11 @@
       "Quantum Fiber": 290,
       "Brightspeed": 270,
       "Spectrum Gig": 260,
-      "Kinetic Fiber": 280
+      "Kinetic Fiber": 280,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 168,
@@ -739,7 +807,11 @@
       "Quantum Fiber": 280,
       "Brightspeed": 260,
       "Spectrum Gig": 250,
-      "Kinetic Fiber": 270
+      "Kinetic Fiber": 270,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 79,
@@ -797,12 +869,18 @@
       "smsTravelUpdatesConsent": true
     },
     "payRates": {
+      "Sparklight Fiber": 340,
+      "T-Mobile Fiber": 340,
       "AT&T Fiber": 250,
       "Frontier Fiber": 270,
       "Quantum Fiber": 240,
       "Brightspeed": 220,
       "Spectrum Gig": 210,
-      "Kinetic Fiber": 230
+      "Kinetic Fiber": 230,
+      "Google Fiber": 320,
+      "Optimum Fiber": 280,
+      "Ziply Fiber": 290,
+      "Cox Gigablast": 270
     },
     "stats": {
       "installs": 0,

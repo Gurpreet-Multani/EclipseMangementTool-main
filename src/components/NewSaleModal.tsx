@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { OrderStatus } from '../types';
+import { STANDARD_ISP_PROGRAMS } from '../lib/ispPrograms';
 import {
   X,
   Plus,
@@ -55,6 +56,18 @@ interface ParsedSaleResult {
 export const NewSaleModal: React.FC<NewSaleModalProps> = ({ onClose, initialMode = 'manual' }) => {
   const { currentUser } = useAuth();
   const { addSaleOrder, blitzes } = useData();
+
+  const availableIspPrograms = useMemo(() => {
+    const list = [...STANDARD_ISP_PROGRAMS];
+    if (currentUser?.payRates) {
+      Object.keys(currentUser.payRates).forEach((k) => {
+        if (!list.includes(k as any)) {
+          list.push(k as any);
+        }
+      });
+    }
+    return list;
+  }, [currentUser?.payRates]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const nextWeekStr = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -795,12 +808,14 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ onClose, initialMode
                 onChange={(e) => setIspProgram(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
               >
-                <option value="AT&T Fiber">AT&T Fiber</option>
-                <option value="Frontier Fiber">Frontier Fiber</option>
-                <option value="Quantum Fiber">Quantum Fiber</option>
-                <option value="Brightspeed">Brightspeed</option>
-                <option value="Spectrum Gig">Spectrum Gig</option>
-                <option value="Kinetic Fiber">Kinetic Fiber</option>
+                {availableIspPrograms.map((p) => {
+                  const rate = currentUser?.payRates?.[p];
+                  return (
+                    <option key={p} value={p}>
+                      {p} {typeof rate === 'number' ? `($${rate}/inst)` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

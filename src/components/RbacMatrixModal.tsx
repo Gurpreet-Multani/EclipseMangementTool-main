@@ -15,6 +15,12 @@ import {
   TrendingUp,
   UserCheck,
   Compass,
+  Search,
+  Sparkles,
+  RotateCcw,
+  ArrowRight,
+  Eye,
+  Layers,
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -23,7 +29,10 @@ interface RbacMatrixModalProps {
 }
 
 export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => {
-  const { currentUser, loginAs, users, isAdmin, createUserByAdmin } = useAuth();
+  const { currentUser, loginAs, users, isAdmin, actualIsAdmin, isImpersonating, switchBackToAdmin, createUserByAdmin } = useAuth();
+  const [personaSearch, setPersonaSearch] = useState('');
+  const [personaRoleFilter, setPersonaRoleFilter] = useState<'all' | 'director' | 'blitz_mgr' | 'team_lead' | 'trainer' | 'rep'>('all');
+  const [switchFeedback, setSwitchFeedback] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -252,6 +261,111 @@ export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => 
     },
   ];
 
+  const handleSwitchPersona = async (userId: string, userName: string, userRole: string) => {
+    await loginAs(userId);
+    setSwitchFeedback(`Switched view to ${userName} (${userRole})`);
+    setTimeout(() => {
+      setSwitchFeedback(null);
+    }, 3000);
+  };
+
+  const categorizeRole = (roleStr: string = ''): 'director' | 'blitz_mgr' | 'team_lead' | 'trainer' | 'rep' => {
+    const r = roleStr.toLowerCase();
+    if (r === 'admin' || r === 'owner' || r.includes('director') || r.includes('executive')) return 'director';
+    if (r.includes('blitz manager') || r.includes('blitz mgr') || r === 'manager') return 'blitz_mgr';
+    if (r.includes('team lead') || r.includes('squad leader')) return 'team_lead';
+    if (r.includes('corporate trainer') || r.includes('trainer') || r.includes('junior lead')) return 'trainer';
+    return 'rep';
+  };
+
+  const getRoleStyling = (roleStr: string = '') => {
+    const cat = categorizeRole(roleStr);
+    switch (cat) {
+      case 'director':
+        return {
+          tier: 'Director / Executive',
+          badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+          hoverBorder: 'hover:border-rose-500/60',
+          activeStyle: 'border-rose-500 ring-2 ring-rose-500/50 bg-gradient-to-br from-rose-950/40 to-slate-950 shadow-[0_0_15px_rgba(244,63,94,0.25)]',
+        };
+      case 'blitz_mgr':
+        return {
+          tier: 'Blitz Manager',
+          badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+          hoverBorder: 'hover:border-amber-500/60',
+          activeStyle: 'border-amber-500 ring-2 ring-amber-500/50 bg-gradient-to-br from-amber-950/40 to-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.25)]',
+        };
+      case 'team_lead':
+        return {
+          tier: 'Level 3 Team Lead',
+          badgeBg: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+          hoverBorder: 'hover:border-purple-500/60',
+          activeStyle: 'border-purple-500 ring-2 ring-purple-500/50 bg-gradient-to-br from-purple-950/40 to-slate-950 shadow-[0_0_15px_rgba(168,85,247,0.25)]',
+        };
+      case 'trainer':
+        return {
+          tier: 'Level 2 Trainer',
+          badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+          hoverBorder: 'hover:border-emerald-500/60',
+          activeStyle: 'border-emerald-500 ring-2 ring-emerald-500/50 bg-gradient-to-br from-emerald-950/40 to-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)]',
+        };
+      case 'rep':
+      default:
+        return {
+          tier: 'Level 1 Sales Rep',
+          badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+          hoverBorder: 'hover:border-cyan-500/60',
+          activeStyle: 'border-cyan-500 ring-2 ring-cyan-500/50 bg-gradient-to-br from-cyan-950/40 to-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.25)]',
+        };
+    }
+  };
+
+  const sortedUsers = [...users].sort((a, b) => {
+    // Gurpreet Multani always first
+    const aIsGurpreet = a.id === 'user_owner_gurpreet' || (a.email || '').toLowerCase().includes('gurpreet');
+    const bIsGurpreet = b.id === 'user_owner_gurpreet' || (b.email || '').toLowerCase().includes('gurpreet');
+    if (aIsGurpreet && !bIsGurpreet) return -1;
+    if (!aIsGurpreet && bIsGurpreet) return 1;
+
+    const rankWeights: Record<string, number> = {
+      director: 5,
+      blitz_mgr: 4,
+      team_lead: 3,
+      trainer: 2,
+      rep: 1,
+    };
+    const catA = categorizeRole(a.role);
+    const catB = categorizeRole(b.role);
+    if (rankWeights[catA] !== rankWeights[catB]) {
+      return (rankWeights[catB] || 0) - (rankWeights[catA] || 0);
+    }
+    return (a.displayName || '').localeCompare(b.displayName || '');
+  });
+
+  const filteredUsers = sortedUsers.filter((u) => {
+    if (personaRoleFilter !== 'all' && categorizeRole(u.role) !== personaRoleFilter) {
+      return false;
+    }
+    if (personaSearch.trim()) {
+      const q = personaSearch.toLowerCase().trim();
+      const matchName = (u.displayName || '').toLowerCase().includes(q);
+      const matchRole = (u.role || '').toLowerCase().includes(q);
+      const matchTitle = (u.title || '').toLowerCase().includes(q);
+      const matchEmail = (u.email || '').toLowerCase().includes(q);
+      return matchName || matchRole || matchTitle || matchEmail;
+    }
+    return true;
+  });
+
+  const roleCounts = {
+    all: users.length,
+    director: users.filter((u) => categorizeRole(u.role) === 'director').length,
+    blitz_mgr: users.filter((u) => categorizeRole(u.role) === 'blitz_mgr').length,
+    team_lead: users.filter((u) => categorizeRole(u.role) === 'team_lead').length,
+    trainer: users.filter((u) => categorizeRole(u.role) === 'trainer').length,
+    rep: users.filter((u) => categorizeRole(u.role) === 'rep').length,
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-7 max-w-4xl w-full max-h-[92vh] overflow-y-auto space-y-6 shadow-2xl relative">
@@ -344,80 +458,224 @@ export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => 
           </div>
         </div>
 
-        {/* Quick Role Switcher for Testing All 5 Roles */}
-        {isAdmin && (
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-              Test Switch Personas Across Hierarchy:
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              <button
-                onClick={() => loginAs('user_owner_gurpreet')}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-rose-500/30 text-left transition-all group"
-              >
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-rose-400/20 text-rose-400 block mb-1">
-                  Director
-                </span>
-                <p className="text-[11px] font-bold text-white group-hover:text-rose-300 truncate">
-                  Gurpreet Multani
-                </p>
-                <p className="text-[9px] text-slate-500 truncate">Regional Director</p>
-              </button>
+        {/* Test Switch Personas Across Hierarchy (All Users in Database) */}
+        <div className="space-y-3 bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <label className="text-xs font-black text-white uppercase tracking-wider block">
+                  Test Switch Personas Across Hierarchy ({users.length} Team Members)
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Switch seamlessly into any team member's active profile to test their exact UI tabs, work orders, sales pipeline, and permissions.
+              </p>
+            </div>
 
+            {/* Quick Return to Gurpreet / Founder */}
+            {currentUser?.id !== 'user_owner_gurpreet' && (
               <button
-                onClick={() => loginAs('user_mgr_marcus')}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 text-left transition-all group"
+                type="button"
+                onClick={() => handleSwitchPersona('user_owner_gurpreet', 'Gurpreet Multani', 'Chief Executive & Founder')}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-950/40 border border-white/20 transition-all cursor-pointer"
               >
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-amber-400/20 text-amber-400 block mb-1">
-                  Blitz Mgr
-                </span>
-                <p className="text-[11px] font-bold text-white group-hover:text-amber-300 truncate">
-                  Marcus Vance
-                </p>
-                <p className="text-[9px] text-slate-500 truncate">Blitz Manager</p>
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Return to Gurpreet (Founder / Admin)</span>
               </button>
+            )}
+          </div>
 
+          {/* Switch Feedback Toast */}
+          {switchFeedback && (
+            <div className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-in fade-in">
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400" />
+                {switchFeedback}
+              </span>
+              <span className="text-[10px] text-emerald-400/80 font-normal">Active session updated</span>
+            </div>
+          )}
+
+          {/* Search & Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search team members by name, title, role, or email..."
+                value={personaSearch}
+                onChange={(e) => setPersonaSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              />
+              {personaSearch && (
+                <button
+                  type="button"
+                  onClick={() => setPersonaSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-[11px]">
               <button
-                onClick={() => loginAs('user_rep_jordan')}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-purple-500/30 text-left transition-all group"
+                type="button"
+                onClick={() => setPersonaRoleFilter('all')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'all'
+                    ? 'bg-slate-700 text-white shadow-sm'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
               >
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-purple-400/20 text-purple-400 block mb-1">
-                  Level 3
-                </span>
-                <p className="text-[11px] font-bold text-white group-hover:text-purple-300 truncate">
-                  Jordan Hayes
-                </p>
-                <p className="text-[9px] text-slate-500 truncate">Team Lead</p>
+                All ({roleCounts.all})
               </button>
-
               <button
-                onClick={() => loginAs('user_rep_elena')}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-emerald-500/30 text-left transition-all group"
+                type="button"
+                onClick={() => setPersonaRoleFilter('director')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'director'
+                    ? 'bg-rose-500/30 text-rose-300 border border-rose-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
               >
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-400/20 text-emerald-400 block mb-1">
-                  Level 2
-                </span>
-                <p className="text-[11px] font-bold text-white group-hover:text-emerald-300 truncate">
-                  Elena Rivera
-                </p>
-                <p className="text-[9px] text-slate-500 truncate">Corporate Trainer</p>
+                Directors ({roleCounts.director})
               </button>
-
               <button
-                onClick={() => loginAs('user_rep_tyler')}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-cyan-500/30 text-left transition-all group"
+                type="button"
+                onClick={() => setPersonaRoleFilter('blitz_mgr')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'blitz_mgr'
+                    ? 'bg-amber-500/30 text-amber-300 border border-amber-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
               >
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-cyan-400/20 text-cyan-400 block mb-1">
-                  Level 1
-                </span>
-                <p className="text-[11px] font-bold text-white group-hover:text-cyan-300 truncate">
-                  Tyler Chen
-                </p>
-                <p className="text-[9px] text-slate-500 truncate">Field Sales Rep</p>
+                Blitz Mgrs ({roleCounts.blitz_mgr})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPersonaRoleFilter('team_lead')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'team_lead'
+                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                Team Leads ({roleCounts.team_lead})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPersonaRoleFilter('trainer')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'trainer'
+                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                Trainers ({roleCounts.trainer})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPersonaRoleFilter('rep')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  personaRoleFilter === 'rep'
+                    ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                Reps ({roleCounts.rep})
               </button>
             </div>
           </div>
-        )}
+
+          {/* User Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+            {filteredUsers.map((u) => {
+              const isActive = currentUser?.id === u.id;
+              const styling = getRoleStyling(u.role);
+              const initials = (u.displayName || 'U')
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase();
+
+              return (
+                <div
+                  key={u.id}
+                  onClick={() => !isActive && handleSwitchPersona(u.id, u.displayName, u.role)}
+                  className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-2.5 ${
+                    isActive
+                      ? styling.activeStyle
+                      : `bg-slate-900/80 hover:bg-slate-800/90 border-slate-800 ${styling.hoverBorder} cursor-pointer group`
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${styling.badgeBg}`}>
+                        {styling.tier}
+                      </span>
+                      {isActive ? (
+                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Active View
+                        </span>
+                      ) : (
+                        <span className="text-[8px] text-slate-500 uppercase font-semibold">Click to Switch</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-0.5">
+                      {u.badgePhotoUrl ? (
+                        <img
+                          src={u.badgePhotoUrl}
+                          alt={u.displayName}
+                          className="w-8 h-8 rounded-lg object-cover ring-1 ring-slate-700 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-black text-slate-300 shrink-0">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
+                          {u.displayName}
+                        </p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {u.title || u.role}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-500 truncate max-w-[130px]">
+                      {u.email || u.id}
+                    </span>
+                    {isActive ? (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Current
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 group-hover:text-emerald-300 font-bold flex items-center gap-0.5 transition-colors">
+                        View <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredUsers.length === 0 && (
+              <div className="col-span-full py-8 text-center text-slate-500 text-xs">
+                No team members found matching "{personaSearch}".
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Detailed Permissions Comparison Matrix */}
         <div className="space-y-2">

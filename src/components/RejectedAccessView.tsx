@@ -36,7 +36,7 @@ export const RejectedAccessView: React.FC<RejectedAccessViewProps> = ({ user, on
                 Account Not Authorized
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Your request to access Eclipse Dashboard Pro was declined or your access has been revoked by an Administrator.
+                Your request to access EclipseMangement was declined or your access has been revoked by an Administrator.
               </p>
             </div>
           </div>

@@ -30,8 +30,12 @@ import {
   Trophy,
   Zap,
   UserPlus,
+  Plus,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { DEFAULT_ISP_PAY_RATES, getNormalizedPayRates } from '../lib/ispPrograms';
 
 interface ProfileViewProps {
   onOpenBadgeModal: () => void;
@@ -201,14 +205,66 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
   const [title, setTitle] = useState(activeSubjectUser?.title || '');
 
   // Pay rates for ISP programs (Manager or Admin can ONLY change this section for reps)
-  const [payRates, setPayRates] = useState<Record<string, number>>(activeSubjectUser?.payRates || {
-    'AT&T Fiber': 260,
-    'Frontier Fiber': 280,
-    'Quantum Fiber': 250,
-    'Brightspeed': 230,
-    'Spectrum Gig': 220,
-    'Kinetic Fiber': 240,
-  });
+  const [payRates, setPayRates] = useState<Record<string, number>>(() =>
+    getNormalizedPayRates(activeSubjectUser?.payRates)
+  );
+
+  const [newIspName, setNewIspName] = useState('');
+  const [newIspRate, setNewIspRate] = useState<number>(300);
+  const [showAddIspModal, setShowAddIspModal] = useState(false);
+  const [savingPayRates, setSavingPayRates] = useState(false);
+  const [payRateNotice, setPayRateNotice] = useState<string | null>(null);
+
+  // Synchronize pay rates whenever the active user changes
+  useEffect(() => {
+    if (activeSubjectUser) {
+      setPayRates(getNormalizedPayRates(activeSubjectUser.payRates));
+    }
+  }, [activeSubjectUser?.id]);
+
+  const handleSavePayRatesOnly = async () => {
+    const effectiveId = targetUserId || currentUser?.id;
+    if (!effectiveId) return;
+    setSavingPayRates(true);
+    setPayRateNotice(null);
+    const success = await updateRepPayRates(effectiveId, payRates);
+    setSavingPayRates(false);
+    if (success) {
+      setPayRateNotice(
+        `Commission pay rates for ${activeSubjectUser?.displayName || 'user'} successfully saved to Cloud Firestore & profile!`
+      );
+      confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+      setTimeout(() => setPayRateNotice(null), 4000);
+    } else {
+      setPayRateNotice('Failed to update pay rates. Check permissions.');
+      setTimeout(() => setPayRateNotice(null), 4000);
+    }
+  };
+
+  const handleAddCustomIsp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIspName.trim()) return;
+    const trimmed = newIspName.trim();
+    setPayRates((prev) => ({
+      ...prev,
+      [trimmed]: Number(newIspRate) || 300,
+    }));
+    setNewIspName('');
+    setNewIspRate(300);
+    setShowAddIspModal(false);
+  };
+
+  const handleRemoveIsp = (ispName: string) => {
+    setPayRates((prev) => {
+      const copy = { ...prev };
+      delete copy[ispName];
+      return copy;
+    });
+  };
+
+  const handleResetToStandardRates = () => {
+    setPayRates(DEFAULT_ISP_PAY_RATES);
+  };
 
   // Login credentials
   const [newPassword, setNewPassword] = useState('');
@@ -230,7 +286,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
       setManagerId(u.managerId || '');
       setRole((u.role as UserRole) || 'Representative');
       setTitle(u.title);
-      setPayRates(u.payRates || {});
+      setPayRates(getNormalizedPayRates(u.payRates));
       setAbleToTravel(u.travelProfile?.ableToTravel ?? true);
       setHomeAirport(u.travelProfile?.homeAirport || '');
       setSmsConsent(u.travelProfile?.smsTravelUpdatesConsent ?? true);
@@ -283,15 +339,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
       idPhotoUrl: idPhoto,
     };
 
+    const effectiveTargetId = targetUserId || currentUser.id;
+
     // RBAC: Only Admin or Manager can modify roles/titles and pay rates
-    if (canChangeUserRolesAndTitles && targetUserId) {
-      await updateRepRole(targetUserId, role, title);
+    if (canChangeUserRolesAndTitles) {
+      await updateRepRole(effectiveTargetId, role, title);
     }
-    if (canChangePayRates && targetUserId) {
-      await updateRepPayRates(targetUserId, payRates);
+    if (canChangePayRates) {
+      await updateRepPayRates(effectiveTargetId, payRates);
     }
 
-    await updateUserProfile(targetUserId || currentUser.id, updates);
+    await updateUserProfile(effectiveTargetId, {
+      ...updates,
+      ...(canChangePayRates ? { payRates } : {}),
+    });
 
     setSavedSuccessMsg('Profile and secure records saved successfully!');
     confetti({
@@ -982,38 +1043,149 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
           </div>
         </div>
 
-        {/* SECTION 7: PAY RATE PER ISP / PROGRAMS (ONLY ADMIN OR MANAGER CAN CHANGE) */}
+        {/* SECTION 7: PAY RATE PER ISP / PROGRAMS (STORED IN INDIVIDUAL USER DATABASE) */}
         <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-400" />
-              <h3 className="text-base font-bold text-white">ISP Program Commission Pay Rates</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>ISP Program Commission Pay Rates</span>
+                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    {Object.keys(payRates).length} Carriers
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Unique rates for <strong className="text-slate-200">{activeSubjectUser?.displayName}</strong> saved individually in Cloud Firestore.
+                </p>
+              </div>
             </div>
-            {canChangePayRates ? (
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Admin / Manager Authorized</span>
-              </span>
-            ) : (
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Protected: Requires Admin or Manager Role</span>
-              </span>
-            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {canChangePayRates ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddIspModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Add Carrier</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetToStandardRates}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                    title="Reset all ISP pay rates to company default baseline"
+                  >
+                    <RotateCcw className="w-3 h-3 text-slate-400" />
+                    <span>Defaults</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={savingPayRates}
+                    onClick={handleSavePayRatesOnly}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {savingPayRates ? (
+                      <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    <span>Save Pay Rates</span>
+                  </button>
+                </>
+              ) : (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>View Only (Protected)</span>
+                </span>
+              )}
+            </div>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            {canChangePayRates
-              ? `You are signed in as an ${isAdmin ? 'Admin' : 'Manager'}. You can modify commission payouts per carrier fiber install.`
-              : 'Commission pay rates can ONLY be changed by users with "Admin" or "Manager" roles. Representatives have view-only access.'}
-          </p>
+          {/* Live Pay Rate Feedback Banner */}
+          {payRateNotice && (
+            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{payRateNotice}</span>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {Object.entries(payRates).map(([isp, rate]) => (
-              <div key={isp} className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
-                <span className="text-[11px] font-bold text-slate-300 block truncate">{isp}</span>
+          {/* Inline Add Custom Carrier Form */}
+          {showAddIspModal && (
+            <form onSubmit={handleAddCustomIsp} className="p-3.5 bg-slate-950 rounded-2xl border border-emerald-500/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  Add Custom ISP Program / Carrier
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAddIspModal(false)}
+                  className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Metronet, Altafiber, Glo Fiber..."
+                    value={newIspName}
+                    onChange={(e) => setNewIspName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-sm font-bold text-emerald-400">$</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">$</span>
+                  <input
+                    type="number"
+                    required
+                    value={newIspRate}
+                    onChange={(e) => setNewIspRate(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            {Object.entries(payRates).map(([isp, rate]) => (
+              <div
+                key={isp}
+                className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800/90 hover:border-slate-700 space-y-1.5 transition-all group"
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] font-bold text-slate-300 block truncate" title={isp}>
+                    {isp}
+                  </span>
+                  {canChangePayRates && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveIsp(isp)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 text-xs transition-opacity cursor-pointer"
+                      title={`Remove ${isp}`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 bg-slate-900/80 px-2.5 py-1 rounded-xl border border-slate-800">
+                  <span className="text-sm font-bold text-emerald-400 font-mono">$</span>
                   <input
                     type="number"
                     disabled={!canChangePayRates}
@@ -1023,10 +1195,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                       setPayRates(updated);
                     }}
                     className={`w-full bg-transparent font-mono font-bold text-sm ${
-                      canChangePayRates ? 'text-white focus:outline-none' : 'text-slate-500 cursor-not-allowed select-none'
+                      canChangePayRates
+                        ? 'text-white focus:outline-none'
+                        : 'text-slate-400 cursor-not-allowed select-none'
                     }`}
                   />
-                  <span className="text-[10px] text-slate-500">/install</span>
+                  <span className="text-[10px] text-slate-500 font-mono shrink-0">/inst</span>
                 </div>
               </div>
             ))}

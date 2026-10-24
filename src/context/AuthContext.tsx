@@ -99,6 +99,9 @@ interface AuthContextType {
   effectiveRole: UserRole;
   isSimulating: boolean;
   actualIsAdmin: boolean;
+  originalAdminId: string | null;
+  isImpersonating: boolean;
+  switchBackToAdmin: () => Promise<void>;
   // RBAC Flags & Helpers
   isAdmin: boolean;
   isRegionalDirector: boolean;
@@ -231,6 +234,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return null;
   });
+
+  const [originalAdminId, setOriginalAdminId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('eclipse_original_admin_id');
+    } catch {
+      return null;
+    }
+  });
+
+  const isImpersonating = !!(
+    (originalAdminId && currentUser && currentUser.id !== originalAdminId) ||
+    (currentUser && currentUser.id !== 'user_owner_gurpreet')
+  );
 
   // Helper to map and sync Firebase User to Eclipse UserProfile in Firestore
   const syncFirebaseUser = async (fbUser: FirebaseUser): Promise<UserProfile> => {
@@ -828,11 +844,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginAs = async (userId: string) => {
-    const user = users.find((u) => u.id === userId);
+    let user = users.find((u) => u.id === userId);
+    if (!user) {
+      try {
+        const snap = await getDoc(doc(db, 'users', userId));
+        if (snap.exists()) {
+          user = { id: snap.id, ...snap.data() } as UserProfile;
+        }
+      } catch (err) {
+        console.warn('Could not fetch user by id from firestore', err);
+      }
+    }
     if (user) {
+      // Remember previous admin identity when switching
+      if (isAdmin || actualIsAdmin || isFounderGurpreet) {
+        if (currentUser && currentUser.id !== user.id) {
+          const currentAdminId = currentUser.id;
+          setOriginalAdminId(currentAdminId);
+          try {
+            localStorage.setItem('eclipse_original_admin_id', currentAdminId);
+          } catch {}
+        }
+      }
+      if (user.id === 'user_owner_gurpreet' || (originalAdminId && user.id === originalAdminId)) {
+        setOriginalAdminId(null);
+        try {
+          localStorage.removeItem('eclipse_original_admin_id');
+        } catch {}
+      }
       setCurrentUser(user);
       localStorage.setItem(LOCAL_STORAGE_USER_KEY, user.id);
     }
+  };
+
+  const switchBackToAdmin = async () => {
+    const adminId = originalAdminId || 'user_owner_gurpreet';
+    await loginAs(adminId);
+    setOriginalAdminId(null);
+    try {
+      localStorage.removeItem('eclipse_original_admin_id');
+    } catch {}
   };
 
   const loginWithCredentials = async (email: string, pass: string) => {
@@ -1045,7 +1096,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const canManageAllUsers = matchingCustomRole ? matchingCustomRole.permissions.canManageAllUsers : (isAdmin || isRegionalDirector);
   const canManageTeam = matchingCustomRole ? matchingCustomRole.permissions.canManageTeam : isTeamLead;
   const canChangeUserRolesAndTitles = matchingCustomRole ? matchingCustomRole.permissions.canChangeUserRolesAndTitles : (isAdmin || isRegionalDirector || isBlitzManager);
-  const canChangePayRates = matchingCustomRole ? matchingCustomRole.permissions.canChangePayRates : (isAdmin || isRegionalDirector);
+  const canChangePayRates = matchingCustomRole ? matchingCustomRole.permissions.canChangePayRates : (isAdmin || isRegionalDirector || isBlitzManager || isManager || isFounderGurpreet);
   const canUploadCoursework = matchingCustomRole ? matchingCustomRole.permissions.canUploadCoursework : (isAdmin || isRegionalDirector || isBlitzManager || isCorporateTrainer);
   const canLaunchStateBlitz = matchingCustomRole ? matchingCustomRole.permissions.canLaunchStateBlitz : (isAdmin || isRegionalDirector || isBlitzManager);
   const canCutTurf = matchingCustomRole ? (matchingCustomRole.permissions.canCutTurf ?? false) : (isAdmin || isRegionalDirector || isBlitzManager);
@@ -1251,12 +1302,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const userRef = doc(db, 'users', targetUserId);
-        await updateDoc(userRef, {
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        });
+        await setDoc(
+          userRef,
+          {
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
       } catch (e) {
-        console.warn('Firestore updateDoc offline fallback', e);
+        console.warn('Firestore setDoc offline fallback', e);
+      }
+
+      try {
+        const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+        if (cached) {
+          const parsed: UserProfile[] = JSON.parse(cached);
+          const updated = parsed.map((u) => (u.id === targetUserId ? { ...u, ...updates, updatedAt: new Date().toISOString() } : u));
+          localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(updated));
+        }
+      } catch {
+        // Cache notice
       }
 
       try {
@@ -1653,6 +1719,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         effectiveRole,
         isSimulating,
         actualIsAdmin,
+        originalAdminId,
+        isImpersonating,
+        switchBackToAdmin,
         isAdmin,
         isRegionalDirector,
         isBlitzManager,

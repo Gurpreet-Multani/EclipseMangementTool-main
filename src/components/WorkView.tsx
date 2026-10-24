@@ -116,8 +116,8 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
   const [leaderboardCustomStart, setLeaderboardCustomStart] = useState<string>(currentMonthStart);
   const [leaderboardCustomEnd, setLeaderboardCustomEnd] = useState<string>(todayIso);
 
-  // Filters for My Sales
-  const [filterRepId, setFilterRepId] = useState<string>('me');
+  // Filters for My Sales - Default to company-wide All Orders so all sales immediately display
+  const [filterRepId, setFilterRepId] = useState<string>('all');
   const [filterIsp, setFilterIsp] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterState, setFilterState] = useState<string>('all');
@@ -651,6 +651,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     const total = filteredSalesList.length;
     const installs = filteredSalesList.filter((s) => s.status === 'installed').length;
     const scheduled = filteredSalesList.filter((s) => s.status === 'scheduled').length;
+    const jeopardy = filteredSalesList.filter((s) => s.status === 'jeopardy').length;
     const cancels = filteredSalesList.filter((s) => s.status === 'cancelled').length;
     const chargebacks = filteredSalesList.filter((s) => s.status === 'chargeback').length;
     const installRate = total > 0 ? parseFloat(((installs / (installs + cancels || 1)) * 100).toFixed(1)) : 100;
@@ -660,7 +661,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       return acc;
     }, 0);
 
-    return { total, installs, scheduled, cancels, chargebacks, installRate, cancelRate, commission };
+    return { total, installs, scheduled, jeopardy, cancels, chargebacks, installRate, cancelRate, commission };
   }, [filteredSalesList]);
 
   const handleTriggerStatus = async (status: OrderStatus) => {
@@ -1825,7 +1826,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       {subTab === 'sales' && (
         <div className="space-y-4 pb-8 sm:pb-6">
           {/* Aggregate Stats Bar for the Filtered Selection */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 bg-slate-900/80 p-2.5 rounded-2xl border border-slate-800">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 bg-slate-900/80 p-2.5 rounded-2xl border border-slate-800">
             <div className="p-2 text-center border-r border-slate-800/80">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Total Orders</span>
               <p className="text-xl font-black text-white">{filteredMetrics.total}</p>
@@ -1835,16 +1836,20 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               <p className="text-xl font-black text-emerald-400">{filteredMetrics.installs}</p>
             </div>
             <div className="p-2 text-center border-r border-slate-800/80">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase">Scheduled</span>
-              <p className="text-xl font-black text-emerald-400">{filteredMetrics.scheduled}</p>
+              <span className="text-[10px] font-bold text-cyan-400 uppercase">Scheduled</span>
+              <p className="text-xl font-black text-cyan-400">{filteredMetrics.scheduled}</p>
+            </div>
+            <div className="p-2 text-center border-r border-slate-800/80">
+              <span className="text-[10px] font-bold text-amber-400 uppercase">Jeopardy</span>
+              <p className="text-xl font-black text-amber-400">{filteredMetrics.jeopardy}</p>
             </div>
             <div className="p-2 text-center border-r border-slate-800/80">
               <span className="text-[10px] font-bold text-rose-400 uppercase">Cancelled</span>
               <p className="text-xl font-black text-rose-400">{filteredMetrics.cancels}</p>
             </div>
             <div className="p-2 text-center border-r border-slate-800/80">
-              <span className="text-[10px] font-bold text-amber-400 uppercase">Chargebacks</span>
-              <p className="text-xl font-black text-amber-400">{filteredMetrics.chargebacks}</p>
+              <span className="text-[10px] font-bold text-purple-400 uppercase">Chargebacks</span>
+              <p className="text-xl font-black text-purple-400">{filteredMetrics.chargebacks}</p>
             </div>
             <div className="p-2 text-center border-r border-slate-800/80">
               <span className="text-[10px] font-bold text-emerald-300 uppercase">Install Rate</span>
@@ -1966,6 +1971,10 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   <option value="Brightspeed">Brightspeed Fiber</option>
                   <option value="Spectrum Gig">Spectrum Gig</option>
                   <option value="Kinetic Fiber">Kinetic Fiber</option>
+                  <option value="Google Fiber">Google Fiber</option>
+                  <option value="Optimum Fiber">Optimum Fiber</option>
+                  <option value="Ziply Fiber">Ziply Fiber</option>
+                  <option value="Cox Gigablast">Cox Gigablast</option>
                 </select>
               </div>
 
@@ -1982,6 +1991,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   <option value="all">All Statuses</option>
                   <option value="installed">Installed (Verified)</option>
                   <option value="scheduled">Scheduled (Pending)</option>
+                  <option value="jeopardy">Jeopardy (Action Needed)</option>
                   <option value="cancelled">Cancelled</option>
                   <option value="chargeback">Chargeback</option>
                 </select>
@@ -2028,6 +2038,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
               {filteredSalesList.map((order) => {
                 const isInstalled = order.status === 'installed';
                 const isScheduled = order.status === 'scheduled';
+                const isJeopardy = order.status === 'jeopardy';
                 const isCancelled = order.status === 'cancelled';
                 const isChargeback = order.status === 'chargeback';
 
@@ -2076,10 +2087,12 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                             isInstalled
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : isScheduled
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                              : isJeopardy
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse'
                               : isCancelled
                               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                           }`}
                         >
                           {order.status}
@@ -2204,20 +2217,27 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300">Set Order Status:</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <button
                   onClick={() => handleTriggerStatus('installed')}
                   className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center gap-2 justify-center"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Installed (Verified)</span>
+                  <span>Installed</span>
                 </button>
                 <button
                   onClick={() => handleTriggerStatus('scheduled')}
-                  className="p-3 rounded-xl border border-cyan-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center gap-2 justify-center"
+                  className="p-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-bold text-xs flex items-center gap-2 justify-center"
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Scheduled</span>
+                </button>
+                <button
+                  onClick={() => handleTriggerStatus('jeopardy')}
+                  className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs flex items-center gap-2 justify-center animate-pulse"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Jeopardy</span>
                 </button>
                 <button
                   onClick={() => handleTriggerStatus('cancelled')}
@@ -2228,7 +2248,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 </button>
                 <button
                   onClick={() => handleTriggerStatus('chargeback')}
-                  className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center gap-2 justify-center"
+                  className="p-3 rounded-xl border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 font-bold text-xs flex items-center gap-2 justify-center"
                 >
                   <AlertTriangle className="w-4 h-4" />
                   <span>Chargeback</span>

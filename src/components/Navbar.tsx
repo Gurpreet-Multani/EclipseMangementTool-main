@@ -18,6 +18,7 @@ import {
   Clock,
   UserCheck,
   UserPlus,
+  RotateCcw,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -52,7 +53,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     isButtonDisabled,
     actualIsAdmin,
     effectiveRole,
-    isSimulating
+    isSimulating,
+    loginAs,
+    switchBackToAdmin,
   } = useAuth();
   const { notifications, messages, markNotificationRead, clearAllNotifications, getAllSubmissionsPendingReview, getCompletedSubmissions } = useData();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -502,15 +505,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
+                  {currentUser?.id !== 'user_owner_gurpreet' && (
+                    <button
+                      onClick={() => {
+                        loginAs('user_owner_gurpreet');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors border border-amber-500/30"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Return to Gurpreet (Admin)</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
                       onOpenRbacModal();
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-emerald-300 hover:text-emerald-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-emerald-300 hover:text-emerald-200 hover:bg-slate-800 rounded-lg transition-colors"
                   >
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>View Role Permissions Matrix</span>
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>Switch Personas & RBAC Matrix</span>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      All Users
+                    </span>
                   </button>
                   <button
                     onClick={() => {

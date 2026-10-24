@@ -510,6 +510,7 @@ If a specific field is not found in the screenshot, return an empty string or nu
   // Serve static files or Vite dev server
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use('/EclipseMangementTool-main', express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });

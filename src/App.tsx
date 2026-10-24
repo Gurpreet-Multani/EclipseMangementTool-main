@@ -113,8 +113,8 @@ const MainAppContent: React.FC = () => {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_40%,rgba(16,185,129,0.06),transparent_70%)]"></div>
         </div>
         <div className="relative z-10 flex-1 flex flex-col">
-        {/* Live Admin Role Simulator Banner */}
-        <AdminPreviewBanner />
+        {/* Live Admin Role Simulator & Persona Switcher Banner */}
+        <AdminPreviewBanner onOpenRbacModal={() => setShowRbacModal(true)} />
 
         {/* iOS Native Push Notification Banner */}
         <PushNotificationToast

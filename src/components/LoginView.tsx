@@ -207,7 +207,7 @@ export const LoginView: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Eclipse Dashboard Pro
+              EclipseMangement
             </h1>
             <p className="text-xs text-emerald-400/90 font-medium mt-1">
               Fiber Sales Operations & Cloud Sync Platform
@@ -421,7 +421,7 @@ export const LoginView: React.FC = () => {
               </div>
               <h3 className="text-base font-bold text-white">Sign in with Google</h3>
               <p className="text-xs text-slate-400">
-                to continue to Eclipse Dashboard Pro
+                to continue to EclipseMangement
               </p>
             </div>
 
