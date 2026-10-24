@@ -46,17 +46,96 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // Fetch all persisted users
+  // Fetch all persisted users (excluding any deleted tombstones)
   app.get('/api/users', async (_req, res) => {
     try {
-      const jsonPath = path.resolve(__dirname, 'data/users.json');
+      const dataDir = path.resolve(__dirname, 'data');
+      const jsonPath = path.join(dataDir, 'users.json');
+      const deletedPath = path.join(dataDir, 'deleted_users.json');
+
+      let deletedIds: string[] = [];
+      if (fs.existsSync(deletedPath)) {
+        try {
+          const rawDel = await fs.promises.readFile(deletedPath, 'utf8');
+          deletedIds = JSON.parse(rawDel);
+        } catch {
+          deletedIds = [];
+        }
+      }
+
       if (fs.existsSync(jsonPath)) {
         const raw = await fs.promises.readFile(jsonPath, 'utf8');
-        return res.json({ success: true, users: JSON.parse(raw) });
+        const parsed = JSON.parse(raw);
+        const filtered = parsed.filter((u: any) => !deletedIds.includes(u.id) && !deletedIds.includes((u.email || '').toLowerCase()));
+        return res.json({ success: true, users: filtered, deletedIds });
       }
-      res.json({ success: true, users: [] });
+      res.json({ success: true, users: [], deletedIds });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Permanently delete user from data store and Cloud Firestore
+  app.delete('/api/users/:id', async (req, res) => {
+    try {
+      const targetId = req.params.id;
+      if (!targetId) {
+        return res.status(400).json({ success: false, error: 'User ID required' });
+      }
+
+      const dataDir = path.resolve(__dirname, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      // 1. Record in data/deleted_users.json so it is never re-seeded
+      const deletedPath = path.join(dataDir, 'deleted_users.json');
+      let deletedList: string[] = [];
+      if (fs.existsSync(deletedPath)) {
+        try {
+          deletedList = JSON.parse(await fs.promises.readFile(deletedPath, 'utf8'));
+        } catch {
+          deletedList = [];
+        }
+      }
+      if (!deletedList.includes(targetId)) {
+        deletedList.push(targetId);
+        await fs.promises.writeFile(deletedPath, JSON.stringify(deletedList, null, 2), 'utf8');
+      }
+
+      // 2. Remove from data/users.json
+      const jsonPath = path.join(dataDir, 'users.json');
+      if (fs.existsSync(jsonPath)) {
+        try {
+          const raw = await fs.promises.readFile(jsonPath, 'utf8');
+          const currentUsers = JSON.parse(raw);
+          const filtered = currentUsers.filter((u: any) => u.id !== targetId && (u.email || '').toLowerCase() !== targetId.toLowerCase());
+          await fs.promises.writeFile(jsonPath, JSON.stringify(filtered, null, 2), 'utf8');
+        } catch (fileErr) {
+          console.warn('[JSON Delete notice]:', fileErr);
+        }
+      }
+
+      // 3. Remove from Cloud Firestore and record tombstone
+      if (serverDb) {
+        try {
+          const { doc, deleteDoc, setDoc } = await import('firebase/firestore');
+          await deleteDoc(doc(serverDb, 'users', targetId));
+          await setDoc(doc(serverDb, 'deleted_users', targetId), {
+            id: targetId,
+            deletedAt: new Date().toISOString(),
+          }, { merge: true });
+          console.log(`[Cloud Firestore Delete] Removed user document ${targetId} and saved tombstone`);
+        } catch (cloudErr) {
+          console.warn('[Cloud Firestore Delete notice]:', cloudErr);
+        }
+      }
+
+      console.log(`[User Delete] Successfully deleted user ${targetId}`);
+      res.json({ success: true, deletedId: targetId });
+    } catch (err: any) {
+      console.error('[User Delete Error]:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to delete user' });
     }
   });
 

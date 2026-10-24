@@ -45,13 +45,18 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
   onClose,
   initialTab = 'pending',
 }) => {
-  const { users, approveUser, rejectUser, preApproveEmail, currentUser } = useAuth();
+  const { users, approveUser, rejectUser, deleteUserPermanent, preApproveEmail, currentUser } = useAuth();
   const { mobileReachStatus } = useData();
 
   const [activeTab, setActiveTab] = useState<'pending' | 'preapprove' | 'active'>(initialTab);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
+  // Delete User Confirmation States
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Bulk Selection States
   const [selectedPendingIds, setSelectedPendingIds] = useState<Set<string>>(new Set());
@@ -373,6 +378,55 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
     setActionNotice({
       type: 'success',
       message: `Bulk Revoked: Successfully locked out ${successCount} member${successCount === 1 ? '' : 's'}.`,
+    });
+  };
+
+  // Single User Permanent Deletion
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setActionNotice(null);
+    const success = await deleteUserPermanent(userToDelete.id);
+    setIsDeleting(false);
+    if (success) {
+      setSelectedActiveIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userToDelete.id);
+        return next;
+      });
+      setActionNotice({
+        type: 'success',
+        message: `Successfully deleted user ${userToDelete.displayName} from database and directory.`,
+      });
+      setUserToDelete(null);
+    } else {
+      setActionNotice({
+        type: 'error',
+        message: 'Failed to delete user. Check permissions.',
+      });
+    }
+  };
+
+  // Bulk Delete Active Users
+  const handleBulkDeleteActive = async () => {
+    if (selectedActiveIds.size === 0) return;
+    setActionNotice(null);
+    setIsProcessingBulk(true);
+
+    let successCount = 0;
+    const ids = Array.from(selectedActiveIds);
+
+    for (const userId of ids) {
+      const ok = await deleteUserPermanent(userId);
+      if (ok) successCount++;
+    }
+
+    setSelectedActiveIds(new Set());
+    setIsProcessingBulk(false);
+    setShowBulkDeleteConfirm(false);
+    setActionNotice({
+      type: 'success',
+      message: `Permanently deleted ${successCount} user${successCount === 1 ? '' : 's'} from database and directory.`,
     });
   };
 
@@ -1337,19 +1391,31 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
                 </div>
 
                 {selectedActiveIds.size > 0 && (
-                  <button
-                    type="button"
-                    disabled={isProcessingBulk}
-                    onClick={handleBulkRevokeActive}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-500/10 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {isProcessingBulk ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                    )}
-                    <span>Bulk Revoke Access ({selectedActiveIds.size})</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isProcessingBulk}
+                      onClick={handleBulkRevokeActive}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isProcessingBulk ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      )}
+                      <span>Revoke ({selectedActiveIds.size})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isProcessingBulk}
+                      onClick={() => setShowBulkDeleteConfirm(true)}
+                      className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-600/30 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-white" />
+                      <span>Delete Selected ({selectedActiveIds.size})</span>
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -1417,13 +1483,25 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
                       </span>
 
                       {!isFounder && !isMe && (
-                        <button
-                          type="button"
-                          onClick={() => handleReject(u.id)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-semibold transition-colors cursor-pointer"
-                        >
-                          Revoke
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleReject(u.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
+                            title="Revoke dashboard access"
+                          >
+                            Revoke
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setUserToDelete(u)}
+                            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                            title={`Permanently delete ${u.displayName} from database`}
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-400" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1433,6 +1511,86 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
           </div>
         )}
       </div>
+      {/* Single User Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center border border-rose-500/30">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h4 className="text-base font-bold text-white">Permanently Delete User?</h4>
+              <p className="text-xs text-slate-300">
+                Are you sure you want to permanently delete{' '}
+                <strong className="text-white">{userToDelete.displayName}</strong>{' '}
+                <span className="text-slate-400">({userToDelete.email})</span>?
+              </p>
+              <p className="text-[11px] text-rose-400/90 font-medium pt-1">
+                This will permanently erase their record from Cloud Firestore, local storage, and the team directory.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Permanently Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Active Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center border border-rose-500/30">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h4 className="text-base font-bold text-white">Bulk Delete Team Members?</h4>
+              <p className="text-xs text-slate-300">
+                Are you sure you want to permanently delete{' '}
+                <strong className="text-white">{selectedActiveIds.size}</strong> selected team member(s)?
+              </p>
+              <p className="text-[11px] text-rose-400/90 font-medium pt-1">
+                All selected records will be permanently removed from Cloud Firestore and the Active Team Directory.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isProcessingBulk}
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessingBulk}
+                onClick={handleBulkDeleteActive}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                {isProcessingBulk ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Delete {selectedActiveIds.size} Users</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -29,6 +29,7 @@ import {
   updateDoc,
   onSnapshot,
   collection,
+  deleteDoc,
 } from 'firebase/firestore';
 
 interface AuthContextType {
@@ -63,6 +64,7 @@ interface AuthContextType {
   // Account Approval Governance
   approveUser: (targetUserId: string, role?: UserRole, title?: string) => Promise<boolean>;
   rejectUser: (targetUserId: string, reason?: string) => Promise<boolean>;
+  deleteUserPermanent: (targetUserId: string) => Promise<boolean>;
   preApproveEmail: (
     email: string,
     role?: UserRole,
@@ -128,24 +130,45 @@ const LOCAL_STORAGE_USERS_KEY = 'eclipse_users_cache';
 const LOCAL_STORAGE_ROLES_KEY = 'eclipse_custom_roles';
 const LOCAL_STORAGE_CREDENTIALS_KEY = 'eclipse_user_credentials';
 const LOCAL_STORAGE_UI_CONFIGS_KEY = 'eclipse_role_ui_configs';
+const LOCAL_STORAGE_DELETED_KEY = 'eclipse_deleted_user_ids';
+
+function getDeletedUserIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function markUserIdDeleted(id: string) {
+  try {
+    const set = getDeletedUserIds();
+    set.add(id);
+    localStorage.setItem(LOCAL_STORAGE_DELETED_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // Ignore
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   const [users, setUsers] = useState<UserProfile[]>(() => {
     try {
+      const deleted = getDeletedUserIds();
       const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
       if (cached) {
         const parsed: UserProfile[] = JSON.parse(cached);
-        const map = new Map<string, UserProfile>();
-        INITIAL_USERS.forEach((u) => map.set(u.id, u));
-        parsed.forEach((u) => map.set(u.id, u));
-        return Array.from(map.values());
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((u) => !deleted.has(u.id) && !deleted.has((u.email || '').toLowerCase()));
+        }
       }
     } catch (e) {
       console.warn('Failed to parse cached users', e);
     }
-    return INITIAL_USERS;
+    const deleted = getDeletedUserIds();
+    return INITIAL_USERS.filter((u) => !deleted.has(u.id) && !deleted.has((u.email || '').toLowerCase()));
   });
 
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() => {
@@ -404,37 +427,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time Cloud Database sync for all users
   useEffect(() => {
-    const syncUsersFromFirestore = async () => {
-      try {
-        for (const seedUser of INITIAL_USERS) {
-          const userRef = doc(db, 'users', seedUser.id);
-          const snap = await getDoc(userRef);
-          if (!snap.exists()) {
-            await setDoc(userRef, seedUser);
-          }
-        }
-      } catch (err) {
-        console.warn('Firestore initial user seeding notice:', err);
-      }
-    };
-
-    syncUsersFromFirestore();
-
     // Sync users from backend persistent store
     fetch('/api/users')
       .then((r) => r.json())
       .then((data) => {
-        if (data?.success && Array.isArray(data.users) && data.users.length > 0) {
+        if (data?.success && Array.isArray(data.users)) {
+          const deleted = getDeletedUserIds();
+          if (Array.isArray(data.deletedIds)) {
+            data.deletedIds.forEach((id: string) => deleted.add(id));
+          }
           setUsers((prev) => {
             const map = new Map<string, UserProfile>();
-            INITIAL_USERS.forEach((u) => {
-              if (u && u.id) map.set(u.id, u);
-            });
             prev.forEach((u) => {
-              if (u && u.id) map.set(u.id, u);
+              if (u && u.id && !deleted.has(u.id) && !deleted.has((u.email || '').toLowerCase())) {
+                map.set(u.id, u);
+              }
             });
             data.users.forEach((u: UserProfile) => {
-              if (u && u.id) map.set(u.id, u);
+              if (u && u.id && !deleted.has(u.id) && !deleted.has((u.email || '').toLowerCase())) {
+                map.set(u.id, u);
+              }
             });
             return Array.from(map.values());
           });
@@ -446,29 +458,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsub = onSnapshot(
       collection(db, 'users'),
       (snap) => {
-        if (!snap.empty) {
-          const remoteUsers: UserProfile[] = [];
-          snap.forEach((docSnap) => {
-            const data = docSnap.data() as UserProfile;
+        const deleted = getDeletedUserIds();
+        const remoteUsers: UserProfile[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as UserProfile;
+          const uid = data.id || docSnap.id;
+          if (!deleted.has(uid) && !deleted.has((data.email || '').toLowerCase())) {
             remoteUsers.push({
               ...data,
-              id: data.id || docSnap.id,
+              id: uid,
             });
-          });
+          }
+        });
 
-          setUsers((prev) => {
-            const map = new Map<string, UserProfile>();
-            INITIAL_USERS.forEach((u) => {
-              if (u && u.id) map.set(u.id, u);
-            });
-            prev.forEach((u) => {
-              if (u && u.id) map.set(u.id, u);
-            });
-            remoteUsers.forEach((u) => {
-              if (u && u.id) map.set(u.id, u);
-            });
-            return Array.from(map.values());
-          });
+        if (remoteUsers.length > 0) {
+          setUsers(remoteUsers);
         }
       },
       (err) => {
@@ -522,18 +526,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sign in with Google (Popup SSO)
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string; code?: string }> => {
-    // Avoid triggering Firebase Auth origin validation crash on Cloud Run or dynamic preview domains
-    const isAllowedDomain = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.endsWith('.firebaseapp.com') ||
-      window.location.hostname.endsWith('.web.app')
-    );
-
-    if (!isAllowedDomain) {
-      return { success: false, error: 'domain_restricted', code: 'auth/unauthorized-domain' };
-    }
-
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
@@ -1376,6 +1368,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updateUserProfile(targetUserId, updates);
   };
 
+  const deleteUserPermanent = async (targetUserId: string): Promise<boolean> => {
+    const isFounder =
+      (currentUser?.email || '').toLowerCase().includes('gurpreet') ||
+      currentUser?.id === 'user_owner_gurpreet';
+
+    if (!isAdmin && !isFounder && !effectiveRoleLower.includes('regional director')) {
+      alert('RBAC Access Denied: Only Admins and Founders can permanently delete users.');
+      return false;
+    }
+
+    const targetUser = users.find((u) => u.id === targetUserId);
+    if (!targetUser) return false;
+
+    if (
+      (targetUser.email || '').toLowerCase().includes('gurpreet') ||
+      targetUser.id === 'user_owner_gurpreet'
+    ) {
+      alert('Security Protection: Primary Executive account cannot be deleted.');
+      return false;
+    }
+
+    // Mark as permanently deleted so it can never be auto-seeded
+    markUserIdDeleted(targetUserId);
+    if (targetUser.email) {
+      markUserIdDeleted(targetUser.email.toLowerCase());
+    }
+
+    // 1. Remove from local state
+    setUsers((prev) =>
+      prev.filter(
+        (u) =>
+          u.id !== targetUserId &&
+          (u.email || '').toLowerCase() !== (targetUser.email || '').toLowerCase()
+      )
+    );
+
+    // 2. Remove from localStorage
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+      if (cached) {
+        const parsed: UserProfile[] = JSON.parse(cached);
+        const filtered = parsed.filter(
+          (u) =>
+            u.id !== targetUserId &&
+            (u.email || '').toLowerCase() !== (targetUser.email || '').toLowerCase()
+        );
+        localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn('Local storage delete cache notice:', e);
+    }
+
+    // 3. Remove from Cloud Firestore users and write tombstone
+    try {
+      await deleteDoc(doc(db, 'users', targetUserId));
+      await setDoc(doc(db, 'deleted_users', targetUserId), {
+        id: targetUserId,
+        email: targetUser.email || '',
+        deletedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore deleteDoc fallback notice:', e);
+    }
+
+    // 4. Remove from server persistent file store
+    try {
+      await fetch(`/api/users/${encodeURIComponent(targetUserId)}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      console.warn('Backend user delete API notice:', e);
+    }
+
+    return true;
+  };
+
   const preApproveEmail = async (
     rawEmail: string,
     role: UserRole = 'Representative',
@@ -1560,6 +1628,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateRepRole,
         approveUser,
         rejectUser,
+        deleteUserPermanent,
         preApproveEmail,
         refreshCurrentUserProfile,
         pendingApprovalsCount,

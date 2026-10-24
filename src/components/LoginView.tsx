@@ -12,7 +12,9 @@ import {
   X,
 } from 'lucide-react';
 
-const GOOGLE_CLIENT_ID = '847070377920-iop5rsi63cjqeuu8csgqsblnsjvsk8re.apps.googleusercontent.com';
+import firebaseConfigJson from '../../firebase-applet-config.json';
+
+const GOOGLE_CLIENT_ID = firebaseConfigJson.oAuthClientId || '304457955775-tbsiehvrru5uqbqlnbgoi4p7rdvat91h.apps.googleusercontent.com';
 
 export const LoginView: React.FC = () => {
   const { loginWithGoogle, loginWithGoogleEmail, loginWithGoogleUserInfo, loginWithCredentials } = useAuth();
@@ -81,6 +83,10 @@ export const LoginView: React.FC = () => {
           error_callback: (err: any) => {
             console.warn('Google OAuth error:', err);
             setGoogleLoading(false);
+            if (err?.type === 'popup_blocked') {
+              setModalEmail('');
+              setShowGoogleModal(true);
+            }
           },
         });
         return true;
@@ -122,9 +128,37 @@ export const LoginView: React.FC = () => {
       return;
     }
 
-    // Always open the Google Workspace Account Chooser directly.
-    // This eliminates Google's "Access blocked: authorization error" (Error 400: origin_mismatch)
-    // on iPhones, iPads, and mobile browsers while providing instant 1-tap sign-in.
+    // 1. Launch the authentic Google account chooser pop-up window
+    setGoogleLoading(true);
+
+    if (tokenClientRef.current) {
+      try {
+        tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+        // Unlock button after 3s if popup is closed or waiting
+        setTimeout(() => setGoogleLoading(false), 3000);
+        return;
+      } catch (err) {
+        console.warn('GIS requestAccessToken error:', err);
+      }
+    }
+
+    // 2. Fallback: Firebase Auth Google pop-up
+    try {
+      const res = await loginWithGoogle();
+      if (res.success) {
+        setGoogleLoading(false);
+        return;
+      }
+      if (res.code === 'auth/popup-closed-by-user') {
+        setGoogleLoading(false);
+        return;
+      }
+    } catch (fbErr) {
+      console.warn('Firebase popup error:', fbErr);
+    }
+
+    // 3. Fallback: If popup was blocked by browser, open the Google account selector
+    setGoogleLoading(false);
     setModalEmail('');
     setShowGoogleModal(true);
   };

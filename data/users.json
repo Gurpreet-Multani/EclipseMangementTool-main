@@ -10,16 +10,6 @@
     "approvalStatus": "approved"
   },
   {
-    "id": "user_test_verify",
-    "email": "verify@eclipsemarketingagency.org",
-    "firstName": "Verify",
-    "lastName": "User",
-    "displayName": "Verify User",
-    "role": "Representative",
-    "title": "Field Rep",
-    "approvalStatus": "approved"
-  },
-  {
     "id": "user_owner_gurpreet",
     "email": "GurpreetMultani@eclipsemarketingagency.org",
     "firstName": "Gurpreet",

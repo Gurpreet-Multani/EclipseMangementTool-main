@@ -224,13 +224,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [sales, blitzes, courses, submissions, notifications, messages, joinRequests, repAvailability]);
 
-  // Firestore Real-time Subscriptions (attach only when user is authenticated)
+  // Firestore Real-time Subscriptions for Enterprise Cloud Database
   useEffect(() => {
-    if (!currentUser) return;
-
     let unsubSales: (() => void) | undefined;
     let unsubBlitzes: (() => void) | undefined;
     let unsubMessages: (() => void) | undefined;
+    let unsubCourses: (() => void) | undefined;
 
     try {
       const salesCol = collection(db, 'sales');
@@ -247,7 +246,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       }, (err) => {
-        console.warn('Firestore sales sync notice (using local state):', err);
+        console.warn('Firestore sales sync notice:', err);
       });
 
       const blitzesCol = collection(db, 'blitzes');
@@ -264,7 +263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       }, (err) => {
-        console.warn('Firestore blitzes sync notice (using local state):', err);
+        console.warn('Firestore blitzes sync notice:', err);
       });
 
       const messagesCol = collection(db, 'messages');
@@ -273,7 +272,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const mList: InternalMessage[] = [];
           snapshot.forEach((d) => mList.push(d.data() as InternalMessage));
           if (mList.length > 0) {
-            // Sort by createdAt descending
             mList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setMessages(mList);
           }
@@ -283,7 +281,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       }, (err) => {
-        console.warn('Firestore messages sync notice (using local state):', err);
+        console.warn('Firestore messages sync notice:', err);
+      });
+
+      const coursesCol = collection(db, 'courses');
+      unsubCourses = onSnapshot(coursesCol, (snapshot) => {
+        if (!snapshot.empty) {
+          const cList: Course[] = [];
+          snapshot.forEach((d) => cList.push(d.data() as Course));
+          if (cList.length > 0) {
+            setCourses(cList);
+          }
+        }
+      }, (err) => {
+        console.warn('Firestore courses sync notice:', err);
       });
     } catch (e) {
       console.warn('Real-time connection initialized with local resilient layer', e);
@@ -293,6 +304,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubSales) unsubSales();
       if (unsubBlitzes) unsubBlitzes();
       if (unsubMessages) unsubMessages();
+      if (unsubCourses) unsubCourses();
     };
   }, []);
 
