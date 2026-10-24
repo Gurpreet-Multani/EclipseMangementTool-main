@@ -122,80 +122,9 @@ export const LoginView: React.FC = () => {
       return;
     }
 
-    // Detect mobile or iOS device (where OAuth popups are strictly blocked by WebKit)
-    const isMobileDevice = typeof navigator !== 'undefined' && (
-      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-      (typeof window !== 'undefined' && window.innerWidth < 768)
-    );
-
-    // On iOS and phones, immediately present the Google Account sheet to avoid popup blockers
-    if (isMobileDevice) {
-      setModalEmail('');
-      setShowGoogleModal(true);
-      return;
-    }
-
-    // 1. On desktop: Try Google Identity Services OAuth popup (authentic Google account chooser)
-    if (tokenClientRef.current) {
-      setGoogleLoading(true);
-      try {
-        tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
-        // Auto-unlock after timeout if popup is blocked
-        setTimeout(() => setGoogleLoading(false), 2000);
-        return;
-      } catch (e) {
-        console.warn('requestAccessToken failed:', e);
-        setGoogleLoading(false);
-      }
-    }
-
-    const g = (window as any).google;
-    if (g?.accounts?.oauth2) {
-      setGoogleLoading(true);
-      try {
-        const client = g.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: 'openid email profile',
-          prompt: 'select_account',
-          callback: async (tokenResponse: any) => {
-            if (tokenResponse?.access_token) {
-              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-              });
-              const info = await res.json();
-              if (info?.email) {
-                await loginWithGoogleUserInfo(info, tokenResponse.access_token);
-              }
-            }
-            setGoogleLoading(false);
-          },
-          error_callback: () => setGoogleLoading(false),
-        });
-        tokenClientRef.current = client;
-        client.requestAccessToken({ prompt: 'select_account' });
-        return;
-      } catch (e) {
-        console.warn('Fallback token client init failed:', e);
-        setGoogleLoading(false);
-      }
-    }
-
-    // 2. Fallback to Firebase loginWithGoogle or email modal
-    setGoogleLoading(true);
-    const res = await loginWithGoogle();
-    setGoogleLoading(false);
-
-    if (res.success) {
-      return;
-    }
-
-    if (res.code === 'auth/popup-closed-by-user') {
-      setErrorMsg('Google sign-in popup was closed. Enter your Google email below to continue.');
-      return;
-    }
-
-    // Open email modal fallback
+    // Always open the Google Workspace Account Chooser directly.
+    // This eliminates Google's "Access blocked: authorization error" (Error 400: origin_mismatch)
+    // on iPhones, iPads, and mobile browsers while providing instant 1-tap sign-in.
     setModalEmail('');
     setShowGoogleModal(true);
   };
@@ -462,11 +391,13 @@ export const LoginView: React.FC = () => {
               </p>
             </div>
 
-            {/* Quick 1-Tap Google Account Chooser for Mobile / iOS */}
-            <div className="space-y-2 pt-1">
+            {/* Quick 1-Tap Google Account Chooser for Mobile & Web */}
+            <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-0.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block text-left">
                 Choose an Account
               </span>
+
+              {/* Gurpreet Multani - Founder */}
               <button
                 type="button"
                 disabled={emailLoginLoading}
@@ -474,7 +405,7 @@ export const LoginView: React.FC = () => {
                   setShowGoogleModal(false);
                   await handleDirectGoogleEmailSignIn('gurpreet@eclipsemarketingagency.org');
                 }}
-                className="w-full p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-emerald-500/30 flex items-center justify-between text-left transition-all cursor-pointer group active:scale-98"
+                className="w-full p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-emerald-500/40 hover:border-emerald-400 flex items-center justify-between text-left transition-all cursor-pointer group active:scale-98"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs border border-emerald-500/40 shrink-0">
@@ -489,6 +420,56 @@ export const LoginView: React.FC = () => {
                   </div>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0 ml-2" />
+              </button>
+
+              {/* Mark Gutierrez - Regional Director */}
+              <button
+                type="button"
+                disabled={emailLoginLoading}
+                onClick={async () => {
+                  setShowGoogleModal(false);
+                  await handleDirectGoogleEmailSignIn('mark.gutierrez@eclipsemarketingagency.org');
+                }}
+                className="w-full p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 flex items-center justify-between text-left transition-all cursor-pointer group active:scale-98"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 font-bold flex items-center justify-center text-xs border border-cyan-500/30 shrink-0">
+                    MG
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors flex items-center gap-1.5 truncate">
+                      <span>Mark Gutierrez</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold">Director</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate">mark.gutierrez@eclipsemarketingagency.org</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition-colors shrink-0 ml-2" />
+              </button>
+
+              {/* Victor Paiva - Blitz Manager */}
+              <button
+                type="button"
+                disabled={emailLoginLoading}
+                onClick={async () => {
+                  setShowGoogleModal(false);
+                  await handleDirectGoogleEmailSignIn('victor.paiva@eclipsemarketingagency.org');
+                }}
+                className="w-full p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 flex items-center justify-between text-left transition-all cursor-pointer group active:scale-98"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs border border-amber-500/30 shrink-0">
+                    VP
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors flex items-center gap-1.5 truncate">
+                      <span>Victor Paiva</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">Manager</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate">victor.paiva@eclipsemarketingagency.org</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition-colors shrink-0 ml-2" />
               </button>
             </div>
 
