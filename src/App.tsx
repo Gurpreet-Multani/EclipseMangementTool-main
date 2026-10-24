@@ -76,7 +76,15 @@ const MainAppContent: React.FC = () => {
 
   // Account Approval Gating
   const userApprovalStatus = currentUser.approvalStatus || 'approved';
-  if (userApprovalStatus === 'pending') {
+  const isFounderAdmin =
+    currentUser.role === 'Admin' ||
+    (currentUser.email && (
+      currentUser.email.toLowerCase().includes('gurpreet') ||
+      currentUser.email.toLowerCase().includes('multani') ||
+      currentUser.email.toLowerCase() === 'gurpreetmultani@eclipsemarketingagency.org'
+    ));
+
+  if (!isFounderAdmin && userApprovalStatus === 'pending') {
     return (
       <PendingApprovalView
         user={currentUser}

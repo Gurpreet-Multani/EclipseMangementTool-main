@@ -294,7 +294,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubBlitzes) unsubBlitzes();
       if (unsubMessages) unsubMessages();
     };
-  }, [currentUser?.id]);
+  }, []);
 
   // MobileReach 24/7 D2D Automated Cloud Sync State
   const [mobileReachStatus, setMobileReachStatus] = useState<MobileReachSyncStatus | null>(() => {
@@ -1446,7 +1446,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (
         currentUser &&
         currentUser.id === repId &&
-        currentUser.email.toLowerCase().includes('gurpreet') &&
+        (currentUser.email || '').toLowerCase().includes('gurpreet') &&
         o.repId === 'user_owner_gurpreet'
       ) {
         return true;
@@ -1490,7 +1490,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (
         currentUser &&
         currentUser.id === managerId &&
-        currentUser.email.toLowerCase().includes('gurpreet') &&
+        (currentUser.email || '').toLowerCase().includes('gurpreet') &&
         (o.uplineManagerId === 'user_owner_gurpreet' || o.repId === 'user_owner_gurpreet')
       ) {
         return true;
@@ -1533,7 +1533,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const blitz = blitzes.find((b) => b.id === blitzId);
     return !!(
       blitz?.bookedUserIds?.includes(uId) ||
-      (currentUser?.email?.toLowerCase().includes('gurpreet') && blitz?.bookedUserIds?.includes('user_owner_gurpreet'))
+      ((currentUser?.email || '').toLowerCase().includes('gurpreet') && blitz?.bookedUserIds?.includes('user_owner_gurpreet'))
     );
   };
 
@@ -1549,7 +1549,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const matchesRep = order.repId === repId || (
           currentUser &&
           currentUser.id === repId &&
-          currentUser.email.toLowerCase().includes('gurpreet') &&
+          (currentUser.email || '').toLowerCase().includes('gurpreet') &&
           order.repId === 'user_owner_gurpreet'
         );
         if (!matchesRep) return false;
@@ -1558,7 +1558,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const matchesMgr = order.uplineManagerId === managerId || order.repId === managerId || (
           currentUser &&
           currentUser.id === managerId &&
-          currentUser.email.toLowerCase().includes('gurpreet') &&
+          (currentUser.email || '').toLowerCase().includes('gurpreet') &&
           (order.uplineManagerId === 'user_owner_gurpreet' || order.repId === 'user_owner_gurpreet')
         );
         if (!matchesMgr) return false;

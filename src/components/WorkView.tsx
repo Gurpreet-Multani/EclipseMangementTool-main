@@ -210,7 +210,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
     const myAllOrders = sales.filter((s) => {
       if (s.repId === currentUser.id) return true;
-      if (currentUser.email.toLowerCase().includes('gurpreet') && s.repId === 'user_owner_gurpreet') return true;
+      if ((currentUser.email || '').toLowerCase().includes('gurpreet') && s.repId === 'user_owner_gurpreet') return true;
       return false;
     });
 
@@ -236,12 +236,16 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     // Cross-reference MobileReach Live Leaderboard match or user.stats
     const mrKey = personalTimeframe === 'week' ? 'week' : personalTimeframe === 'all' ? 'all' : 'month';
     const mrList = mobileReachStatus?.leaderboard?.[mrKey] || [];
-    const mrMatch = mrList.find(
-      (m) =>
-        m.full_name.toLowerCase() === currentUser.displayName.toLowerCase() ||
-        (m.full_name.toLowerCase().includes(currentUser.lastName.toLowerCase()) &&
-          m.full_name.toLowerCase().includes(currentUser.firstName.toLowerCase()))
-    );
+    const mrMatch = mrList.find((m) => {
+      const mName = (m?.full_name || '').toLowerCase();
+      const uDisplay = (currentUser?.displayName || '').toLowerCase();
+      const uLast = (currentUser?.lastName || '').toLowerCase();
+      const uFirst = (currentUser?.firstName || '').toLowerCase();
+      if (!mName) return false;
+      if (uDisplay && mName === uDisplay) return true;
+      if (uLast && uFirst && mName.includes(uLast) && mName.includes(uFirst)) return true;
+      return false;
+    });
 
     if (mrMatch) {
       installs = mrMatch.installs;
@@ -293,12 +297,16 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
     const findMr = (key: 'week' | 'month' | 'all') => {
       const list = mobileReachStatus?.leaderboard?.[key] || [];
-      const idx = list.findIndex(
-        (m) =>
-          m.full_name.toLowerCase() === currentUser.displayName.toLowerCase() ||
-          (m.full_name.toLowerCase().includes(currentUser.lastName.toLowerCase()) &&
-            m.full_name.toLowerCase().includes(currentUser.firstName.toLowerCase()))
-      );
+      const idx = list.findIndex((m) => {
+        const mName = (m?.full_name || '').toLowerCase();
+        const uDisplay = (currentUser?.displayName || '').toLowerCase();
+        const uLast = (currentUser?.lastName || '').toLowerCase();
+        const uFirst = (currentUser?.firstName || '').toLowerCase();
+        if (!mName) return false;
+        if (uDisplay && mName === uDisplay) return true;
+        if (uLast && uFirst && mName.includes(uLast) && mName.includes(uFirst)) return true;
+        return false;
+      });
       if (idx !== -1) {
         return { deals: list[idx].sales, installs: list[idx].installs, rank: idx + 1 };
       }
@@ -394,12 +402,16 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
         const cancels = userOrders.filter((s) => s.status === 'cancelled').length;
 
         // Check live MobileReach sync list
-        const mrMatch = mrList.find(
-          (m) =>
-            m.full_name.toLowerCase() === user.displayName.toLowerCase() ||
-            (m.full_name.toLowerCase().includes(user.lastName.toLowerCase()) &&
-              m.full_name.toLowerCase().includes(user.firstName.toLowerCase()))
-        );
+        const mrMatch = mrList.find((m) => {
+          const mName = (m?.full_name || '').toLowerCase();
+          const uDisplay = (user?.displayName || '').toLowerCase();
+          const uLast = (user?.lastName || '').toLowerCase();
+          const uFirst = (user?.firstName || '').toLowerCase();
+          if (!mName) return false;
+          if (uDisplay && mName === uDisplay) return true;
+          if (uLast && uFirst && mName.includes(uLast) && mName.includes(uFirst)) return true;
+          return false;
+        });
 
         if (mrMatch) {
           installs = mrMatch.installs;
@@ -622,11 +634,11 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matches =
-          order.customerName.toLowerCase().includes(q) ||
-          order.orderNumber.toLowerCase().includes(q) ||
-          order.address.toLowerCase().includes(q) ||
-          order.repName.toLowerCase().includes(q) ||
-          order.city.toLowerCase().includes(q);
+          (order.customerName || '').toLowerCase().includes(q) ||
+          (order.orderNumber || '').toLowerCase().includes(q) ||
+          (order.address || '').toLowerCase().includes(q) ||
+          (order.repName || '').toLowerCase().includes(q) ||
+          (order.city || '').toLowerCase().includes(q);
         if (!matches) return false;
       }
 

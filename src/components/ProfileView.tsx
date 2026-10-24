@@ -601,9 +601,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 onChange={(e) => setManagerId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
               >
-                <option value="">Direct to Founder (Gurpreet Multani)</option>
+                <option value="user_owner_gurpreet">Gurpreet Multani (Founder & Chief Executive - Direct)</option>
                 {allUsers
-                  .filter((u) => u.role === 'Manager' || u.role === 'Admin')
+                  .filter((u) => u.id !== 'user_owner_gurpreet' && (u.role === 'Manager' || u.role === 'Admin' || u.role === 'Regional Director' || u.role === 'Blitz Manager' || u.role === 'Team Lead'))
                   .map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.displayName} ({m.title || m.role})

@@ -19,6 +19,7 @@ import {
   signOut,
   onAuthStateChanged,
   signInAnonymously,
+  signInWithCredential,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -40,6 +41,10 @@ interface AuthContextType {
   loginAs: (userId: string) => Promise<void>;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string; code?: string }>;
   loginWithGoogleEmail: (email: string, displayName?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogleUserInfo: (
+    userInfo: { email: string; name?: string; picture?: string; sub?: string },
+    accessToken?: string
+  ) => Promise<boolean>;
   loginWithCredentials: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   registerUser: (data: Partial<UserProfile> & { email: string; password?: string }) => Promise<{ success: boolean; error?: string }>;
   createUserByAdmin: (data: {
@@ -170,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [credentialMap, setCredentialMap] = useState<Record<string, string>>(() => {
     const defaults: Record<string, string> = {};
     INITIAL_USERS.forEach((u) => {
-      defaults[u.email.toLowerCase()] = 'eclipse123';
+      if (u.email) defaults[u.email.toLowerCase()] = 'eclipse123';
     });
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY);
@@ -232,18 +237,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!existingProfile) {
       const matched = users.find(
         (u) =>
-          u.email.toLowerCase() === email ||
-          (email.includes('gurpreet') && u.email.toLowerCase().includes('gurpreet'))
+          (u.email || '').toLowerCase() === email ||
+          (email.includes('gurpreet') && (u.email || '').toLowerCase().includes('gurpreet'))
       ) || INITIAL_USERS.find(
         (u) =>
-          u.email.toLowerCase() === email ||
-          (email.includes('gurpreet') && u.email.toLowerCase().includes('gurpreet'))
+          (u.email || '').toLowerCase() === email ||
+          (email.includes('gurpreet') && (u.email || '').toLowerCase().includes('gurpreet'))
       );
 
       const isGurpreet =
         email === 'gurpreet@eclipsemarketingagency.org' ||
         email.includes('gurpreetmultani') ||
-        email.includes('gurpreet');
+        email.includes('gurpreet') ||
+        email.includes('multani');
 
       const isApproved = isGurpreet || matched?.approvalStatus === 'approved';
       const initialApprovalStatus: 'approved' | 'pending' = isApproved ? 'approved' : 'pending';
@@ -359,10 +365,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(existingProfile);
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, existingProfile.id);
 
-    // Update users directory
+    // Update users directory with strict ID deduplication
     setUsers((prev) => {
-      const filtered = prev.filter((u) => u.id !== uid && u.email.toLowerCase() !== email);
-      return [existingProfile!, ...filtered];
+      const map = new Map<string, UserProfile>();
+      prev.forEach((u) => {
+        if (u && u.id && u.id !== uid && u.id !== existingProfile!.id && (u.email || '').toLowerCase() !== email) {
+          map.set(u.id, u);
+        }
+      });
+      map.set(existingProfile!.id, existingProfile!);
+      return Array.from(map.values());
     });
 
     return existingProfile;
@@ -390,10 +402,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  // Sync users with Firestore (attach only when user is authenticated)
+  // Real-time Cloud Database sync for all users
   useEffect(() => {
-    if (!currentUser) return;
-
     const syncUsersFromFirestore = async () => {
       try {
         for (const seedUser of INITIAL_USERS) {
@@ -410,21 +420,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     syncUsersFromFirestore();
 
-    // Real-time Firestore listener for all users
+    // Sync users from backend persistent store
+    fetch('/api/users')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.users) && data.users.length > 0) {
+          setUsers((prev) => {
+            const map = new Map<string, UserProfile>();
+            INITIAL_USERS.forEach((u) => {
+              if (u && u.id) map.set(u.id, u);
+            });
+            prev.forEach((u) => {
+              if (u && u.id) map.set(u.id, u);
+            });
+            data.users.forEach((u: UserProfile) => {
+              if (u && u.id) map.set(u.id, u);
+            });
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Real-time Firestore listener for all users in cloud database
     const unsub = onSnapshot(
       collection(db, 'users'),
       (snap) => {
         if (!snap.empty) {
           const remoteUsers: UserProfile[] = [];
           snap.forEach((docSnap) => {
-            remoteUsers.push(docSnap.data() as UserProfile);
+            const data = docSnap.data() as UserProfile;
+            remoteUsers.push({
+              ...data,
+              id: data.id || docSnap.id,
+            });
           });
 
           setUsers((prev) => {
             const map = new Map<string, UserProfile>();
-            INITIAL_USERS.forEach((u) => map.set(u.id, u));
-            prev.forEach((u) => map.set(u.id, u));
-            remoteUsers.forEach((u) => map.set(u.id, u));
+            INITIAL_USERS.forEach((u) => {
+              if (u && u.id) map.set(u.id, u);
+            });
+            prev.forEach((u) => {
+              if (u && u.id) map.set(u.id, u);
+            });
+            remoteUsers.forEach((u) => {
+              if (u && u.id) map.set(u.id, u);
+            });
             return Array.from(map.values());
           });
         }
@@ -435,7 +477,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => unsub();
-  }, [currentUser?.id]);
+  }, []);
 
   // Real-time sync for current user profile updates
   useEffect(() => {
@@ -480,6 +522,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sign in with Google (Popup SSO)
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string; code?: string }> => {
+    // Avoid triggering Firebase Auth origin validation crash on Cloud Run or dynamic preview domains
+    const isAllowedDomain = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('.firebaseapp.com') ||
+      window.location.hostname.endsWith('.web.app')
+    );
+
+    if (!isAllowedDomain) {
+      return { success: false, error: 'domain_restricted', code: 'auth/unauthorized-domain' };
+    }
+
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
@@ -490,7 +544,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return { success: false, error: 'No user profile returned from Google.' };
     } catch (err: any) {
-      console.error('Google Sign-in failed:', err);
+      console.warn('Google Sign-in popup notice:', err?.message || err);
       const code = err?.code || '';
       let message = err?.message || 'Failed to sign in with Google.';
       if (code === 'auth/unauthorized-domain') {
@@ -516,16 +570,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isGurpreet =
       email === 'gurpreet@eclipsemarketingagency.org' ||
       email.includes('gurpreetmultani') ||
-      email.includes('gurpreet');
+      email.includes('gurpreet') ||
+      email.includes('multani');
 
     const matched = users.find(
       (u) =>
-        u.email.toLowerCase() === email ||
-        (isGurpreet && u.email.toLowerCase().includes('gurpreet'))
+        (u.email || '').toLowerCase() === email ||
+        (isGurpreet && (u.email || '').toLowerCase().includes('gurpreet'))
     ) || INITIAL_USERS.find(
       (u) =>
-        u.email.toLowerCase() === email ||
-        (isGurpreet && u.email.toLowerCase().includes('gurpreet'))
+        (u.email || '').toLowerCase() === email ||
+        (isGurpreet && (u.email || '').toLowerCase().includes('gurpreet'))
     );
 
     const defaultRole: UserRole = isGurpreet ? 'Admin' : 'Representative';
@@ -616,8 +671,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setUsers((prev) => {
-      const filtered = prev.filter((u) => u.id !== profile.id && u.email.toLowerCase() !== email);
-      return [profile, ...filtered];
+      const map = new Map<string, UserProfile>();
+      prev.forEach((u) => {
+        if (u && u.id && u.id !== profile.id && (u.email || '').toLowerCase() !== email) {
+          map.set(u.id, u);
+        }
+      });
+      map.set(profile.id, profile);
+      return Array.from(map.values());
     });
 
     try {
@@ -627,6 +688,151 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return { success: true };
+  };
+
+  const loginWithGoogleUserInfo = async (
+    userInfo: { email: string; name?: string; picture?: string; sub?: string },
+    accessToken?: string
+  ): Promise<boolean> => {
+    const rawEmail = userInfo.email.trim().toLowerCase();
+    if (!rawEmail) return false;
+
+    if (accessToken) {
+      try {
+        const credential = GoogleAuthProvider.credential(null, accessToken);
+        await signInWithCredential(auth, credential);
+      } catch (err) {
+        console.warn('Firebase signInWithCredential notice:', err);
+      }
+    }
+
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+      } catch (err) {
+        console.warn('Firebase anonymous auth notice:', err);
+      }
+    }
+
+    const isGurpreet =
+      rawEmail.includes('gurpreet') ||
+      rawEmail.includes('multani') ||
+      rawEmail === 'gurpreet@eclipsemarketingagency.org';
+
+    const uid = auth.currentUser?.uid || (userInfo.sub ? `g_${userInfo.sub}` : `u_${Date.now()}`);
+    const userRef = doc(db, 'users', uid);
+
+    let existingProfile: UserProfile | null = null;
+    try {
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        existingProfile = snap.data() as UserProfile;
+      }
+    } catch (e) {
+      console.warn('Firestore read notice:', e);
+    }
+
+    const matched = users.find((u) => (u.email || '').toLowerCase() === rawEmail || (isGurpreet && (u.email || '').toLowerCase().includes('gurpreet')));
+
+    const displayName = userInfo.name || (isGurpreet ? 'Gurpreet Multani' : rawEmail.split('@')[0]);
+    const photoUrl = userInfo.picture;
+
+    const baseProfile: UserProfile = existingProfile || matched || {
+      id: uid,
+      email: rawEmail,
+      firstName: isGurpreet ? 'Gurpreet' : (displayName.split(' ')[0] || 'Eclipse'),
+      lastName: isGurpreet ? 'Multani' : (displayName.split(' ').slice(1).join(' ') || 'Specialist'),
+      displayName,
+      role: isGurpreet ? 'Admin' : 'Representative',
+      title: isGurpreet ? 'Chief Executive & Founder' : 'Fiber Field Specialist',
+      approvalStatus: isGurpreet ? 'approved' : 'pending',
+      approvedBy: isGurpreet ? 'Self (Founder)' : undefined,
+      approvedAt: isGurpreet ? new Date().toISOString() : undefined,
+      dateOfBirth: '1998-01-01',
+      shirtSize: 'L',
+      phone: '(555) 000-0000',
+      badgePhotoUrl: photoUrl,
+      idPhotoUrl: photoUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      emergencyContact: {
+        name: 'Primary Contact',
+        phone: '(555) 000-0000',
+        relationship: 'Family',
+      },
+      directDeposit: {
+        bankName: 'Direct Deposit Pending',
+        accountNumber: '••••••••0000',
+        routingNumber: '000000000',
+        accountType: 'checking',
+        taxIdType: 'SSN',
+        taxIdNumber: 'XXX-XX-0000',
+      },
+      fiberAgreement: {
+        status: 'signed',
+        version: 'v2026.2-master',
+        signedDate: new Date().toISOString().slice(0, 10),
+      },
+      travelProfile: {
+        homeAirport: 'DFW - Dallas/Fort Worth',
+        ableToTravel: true,
+        smsTravelUpdatesConsent: true,
+      },
+      payRates: {
+        'AT&T Fiber': 260,
+        'Frontier Fiber': 280,
+        'Quantum Fiber': 250,
+        'Brightspeed': 230,
+        'Spectrum Gig': 220,
+        'Kinetic Fiber': 240,
+      },
+      stats: {
+        installs: isGurpreet ? 142 : 0,
+        cancels: isGurpreet ? 8 : 0,
+        scheduled: isGurpreet ? 18 : 0,
+        chargebacks: isGurpreet ? 1 : 0,
+        totalSales: isGurpreet ? 169 : 0,
+        installRate: isGurpreet ? 94.6 : 100,
+        cancelRate: isGurpreet ? 4.7 : 0,
+        totalCommission: isGurpreet ? 48960 : 0,
+      },
+    };
+
+    if (isGurpreet) {
+      baseProfile.role = 'Admin';
+      baseProfile.title = 'Chief Executive & Founder';
+      baseProfile.approvalStatus = 'approved';
+      baseProfile.displayName = 'Gurpreet Multani';
+      baseProfile.firstName = 'Gurpreet';
+      baseProfile.lastName = 'Multani';
+    }
+
+    if (photoUrl) {
+      baseProfile.badgePhotoUrl = photoUrl;
+      baseProfile.idPhotoUrl = photoUrl;
+    }
+
+    setCurrentUser(baseProfile);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, baseProfile.id);
+
+    setUsers((prev) => {
+      const map = new Map<string, UserProfile>();
+      prev.forEach((u) => {
+        if (u && u.id && u.id !== baseProfile.id && (u.email || '').toLowerCase() !== rawEmail) {
+          map.set(u.id, u);
+        }
+      });
+      map.set(baseProfile.id, baseProfile);
+      return Array.from(map.values());
+    });
+
+    try {
+      await setDoc(userRef, baseProfile, { merge: true });
+    } catch (e) {
+      console.warn('Firestore write notice:', e);
+    }
+
+    return true;
   };
 
   const loginAs = async (userId: string) => {
@@ -639,7 +845,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithCredentials = async (email: string, pass: string) => {
     const normalized = email.trim().toLowerCase();
-    const user = users.find((u) => u.email.toLowerCase() === normalized);
+    const user = users.find((u) => (u.email || '').toLowerCase() === normalized);
     if (!user) {
       return { success: false, error: 'No user found with that email. Please sign in with Google or ask an admin.' };
     }
@@ -670,8 +876,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     title?: string;
     managerId?: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    if (!isAdmin) {
-      return { success: false, error: 'Only admins can create users.' };
+    const isFounderGurpreet =
+      (currentUser?.email || '').toLowerCase().includes('gurpreet') ||
+      (currentUser?.email || '').toLowerCase().includes('multani') ||
+      currentUser?.id === 'user_owner_gurpreet';
+
+    if (!isAdmin && !isFounderGurpreet && !effectiveRoleLower.includes('regional director')) {
+      return { success: false, error: 'Only authorized directors and admins can create users.' };
     }
 
     const normalized = data.email.trim().toLowerCase();
@@ -679,7 +890,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Email and password are required.' };
     }
 
-    const duplicate = users.some((u) => u.email.toLowerCase() === normalized);
+    const duplicate = users.some((u) => (u.email || '').toLowerCase() === normalized);
     if (duplicate) {
       return { success: false, error: 'A user with that email already exists.' };
     }
@@ -695,6 +906,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       displayName: `${data.firstName} ${data.lastName}`.trim(),
       role: data.role,
       title: data.title?.trim() || 'Fiber Field Specialist',
+      approvalStatus: 'approved',
+      approvedBy: currentUser?.displayName || 'Gurpreet Multani (Founder)',
+      approvedAt: nowIso,
       managerId: data.managerId || '',
       managerName: assignedManager?.displayName || 'Direct to Founder',
       dateOfBirth: '1999-01-01',
@@ -744,13 +958,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: nowIso,
     };
 
-    setUsers((prev) => [newUser, ...prev]);
+    setUsers((prev) => {
+      const map = new Map<string, UserProfile>();
+      map.set(newUser.id, newUser);
+      prev.forEach((u) => {
+        if (u && u.id && u.id !== newUser.id && (u.email || '').toLowerCase() !== normalized) {
+          map.set(u.id, u);
+        }
+      });
+      return Array.from(map.values());
+    });
     setCredentialMap((prev) => ({ ...prev, [normalized]: data.password }));
+
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+      const existing: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const cMap = new Map<string, UserProfile>();
+      cMap.set(newUser.id, newUser);
+      existing.forEach((u) => {
+        if (u && u.id && u.id !== newUser.id && (u.email || '').toLowerCase() !== normalized) {
+          cMap.set(u.id, u);
+        }
+      });
+      localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(Array.from(cMap.values())));
+    } catch {
+      // Local storage cache notice
+    }
 
     try {
       await setDoc(doc(db, 'users', newUser.id), newUser);
     } catch (e) {
       console.warn('Firestore create user offline fallback', e);
+    }
+
+    try {
+      await fetch('/api/users/persist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: newUser }),
+      });
+    } catch (e) {
+      console.warn('Persist call notice:', e);
     }
 
     return { success: true };
@@ -766,21 +1014,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
   };
 
+  // Founder Identity
+  const isFounderGurpreet =
+    (currentUser?.email || '').toLowerCase().includes('gurpreet') ||
+    (currentUser?.email || '').toLowerCase().includes('multani') ||
+    currentUser?.id === 'user_owner_gurpreet';
+
   // Actual Admin Identity
-  const actualRole = (currentUser?.role || 'Field Sales Representative').trim();
+  const actualRole = (currentUser?.role || (isFounderGurpreet ? 'Admin' : 'Field Sales Representative')).trim();
   const actualRoleLower = actualRole.toLowerCase();
-  const actualIsAdmin = actualRoleLower === 'admin' || actualRoleLower === 'owner';
+  const actualIsAdmin =
+    actualRoleLower === 'admin' ||
+    actualRoleLower === 'owner' ||
+    actualRoleLower.includes('founder') ||
+    isFounderGurpreet;
 
   // Effective Role (supports live role preview / simulator by Admin)
   const isSimulating = actualIsAdmin && simulatedRole !== null;
-  const effectiveRole = isSimulating ? simulatedRole! : actualRole;
+  const effectiveRole = isSimulating ? simulatedRole! : (isFounderGurpreet && actualRoleLower !== 'admin' ? 'Admin' : actualRole);
   const effectiveRoleLower = effectiveRole.toLowerCase();
 
   // Find if effectiveRole is a custom role
   const matchingCustomRole = customRoles.find((r) => r.name.toLowerCase() === effectiveRoleLower);
 
   // Primary Hierarchy Levels based on effective role
-  const isAdmin = effectiveRoleLower === 'admin' || effectiveRoleLower === 'owner';
+  const isAdmin = effectiveRoleLower === 'admin' || effectiveRoleLower === 'owner' || isFounderGurpreet;
   const isRegionalDirector = isAdmin || effectiveRoleLower.includes('regional director');
   const isBlitzManager = isRegionalDirector || effectiveRoleLower.includes('blitz manager') || effectiveRoleLower === 'manager';
   const isTeamLead = isBlitzManager || effectiveRoleLower.includes('team lead');
@@ -1009,6 +1267,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Firestore updateDoc offline fallback', e);
       }
 
+      try {
+        const currentTarget = users.find((u) => u.id === targetUserId);
+        if (currentTarget) {
+          fetch('/api/users/persist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: { ...currentTarget, ...updates, updatedAt: new Date().toISOString() } }),
+          }).catch(() => {});
+        }
+      } catch (e) {
+        // Safe background persist
+      }
+
       return true;
     } catch (err) {
       console.error('Error updating user profile', err);
@@ -1113,7 +1384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastName = 'Specialist',
     additionalProfile?: Partial<UserProfile>
   ): Promise<boolean> => {
-    if (!isAdmin) {
+    if (!isAdmin && !isFounderGurpreet && !effectiveRoleLower.includes('regional director') && !canManageAllUsers) {
       alert('RBAC Access Denied: Only Admins can pre-authorize users.');
       return false;
     }
@@ -1191,12 +1462,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
     };
 
-    setUsers((prev) => [preApprovedUser, ...prev.filter((u) => u.email.toLowerCase() !== email && u.id !== newId)]);
+    setUsers((prev) => {
+      const map = new Map<string, UserProfile>();
+      map.set(preApprovedUser.id, preApprovedUser);
+      prev.forEach((u) => {
+        if (u && u.id && u.id !== newId && (u.email || '').toLowerCase() !== email) {
+          map.set(u.id, u);
+        }
+      });
+      return Array.from(map.values());
+    });
+
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+      const existing: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const cMap = new Map<string, UserProfile>();
+      cMap.set(preApprovedUser.id, preApprovedUser);
+      existing.forEach((u) => {
+        if (u && u.id && u.id !== newId && (u.email || '').toLowerCase() !== email) {
+          cMap.set(u.id, u);
+        }
+      });
+      localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(Array.from(cMap.values())));
+    } catch {
+      // Local storage cache notice
+    }
 
     try {
       await setDoc(doc(db, 'users', newId), preApprovedUser);
     } catch (e) {
       console.warn('Firestore offline fallback', e);
+    }
+
+    try {
+      await fetch('/api/users/persist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: preApprovedUser }),
+      });
+    } catch (e) {
+      console.warn('Persist call notice:', e);
     }
 
     return true;
@@ -1245,6 +1550,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAs,
         loginWithGoogle,
         loginWithGoogleEmail,
+        loginWithGoogleUserInfo,
         loginWithCredentials,
         registerUser,
         createUserByAdmin,

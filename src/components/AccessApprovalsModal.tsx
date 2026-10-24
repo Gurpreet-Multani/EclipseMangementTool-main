@@ -78,7 +78,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
     homeAirport: 'PHX - Phoenix Sky Harbor',
     role: 'Field Sales Representative' as UserRole,
     title: 'Level 1 Field Sales Representative',
-    managerId: 'user_mgr_marcus',
+    managerId: 'user_owner_gurpreet',
     includeVoltStats: true,
   });
 
@@ -94,20 +94,43 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
     );
   }, [fiberVoltReps, voltSearchQuery]);
 
-  // Separate users by approval status
-  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending');
-  const approvedUsers = users.filter((u) => (u.approvalStatus || 'approved') === 'approved');
+  // Deduplicate users strictly by unique ID to prevent any duplicate key errors
+  const uniqueUsers = useMemo(() => {
+    const map = new Map<string, UserProfile>();
+    users.forEach((u) => {
+      if (u && u.id) {
+        map.set(u.id, u);
+      }
+    });
+    return Array.from(map.values());
+  }, [users]);
+
+  // Separate users by approval status (with newest approved accounts at the top)
+  const pendingUsers = uniqueUsers.filter((u) => u.approvalStatus === 'pending');
+  const approvedUsers = useMemo(() => {
+    return uniqueUsers
+      .filter((u) => u.approvalStatus !== 'pending' && u.approvalStatus !== 'rejected')
+      .sort((a, b) => {
+        const isGurpreetA = (a.email || '').toLowerCase().includes('gurpreet');
+        const isGurpreetB = (b.email || '').toLowerCase().includes('gurpreet');
+        if (isGurpreetA) return -1;
+        if (isGurpreetB) return 1;
+        const timeA = new Date(a.approvedAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.approvedAt || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+  }, [uniqueUsers]);
 
   const filteredPending = pendingUsers.filter(
     (u) =>
-      u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredApproved = approvedUsers.filter(
     (u) =>
-      u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Handle selecting a rep from Fiber Volt dropdown
@@ -121,7 +144,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
       homeAirport: rep.homeAirport,
       role: rep.role,
       title: rep.title,
-      managerId: 'user_mgr_marcus',
+      managerId: 'user_owner_gurpreet',
       includeVoltStats: true,
     });
     setIsVoltDropdownOpen(false);
@@ -141,7 +164,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
       homeAirport: 'PHX - Phoenix Sky Harbor',
       role: 'Field Sales Representative',
       title: 'Level 1 Field Sales Representative',
-      managerId: 'user_mgr_marcus',
+      managerId: 'user_owner_gurpreet',
       includeVoltStats: true,
     });
   };
@@ -176,7 +199,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
 
   // --- Bulk Checkbox Handlers for Active Directory ---
   const revokableActiveUsers = filteredApproved.filter(
-    (u) => !u.email.toLowerCase().includes('gurpreet') && u.id !== currentUser?.id
+    (u) => !(u.email || '').toLowerCase().includes('gurpreet') && u.id !== currentUser?.id
   );
 
   const isAllActiveSelected =
@@ -370,7 +393,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
         title: preApproveForm.title,
         phone: preApproveForm.phone,
         managerId: preApproveForm.managerId,
-        managerName: assignedManager?.displayName || 'Marcus Vance',
+        managerName: assignedManager?.displayName || (preApproveForm.managerId === 'user_owner_gurpreet' ? 'Gurpreet Multani' : 'Marcus Vance'),
       });
     } else {
       additionalProfile = {
@@ -412,7 +435,7 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
         }`,
       });
 
-      // Reset form
+      // Reset form and switch to Active Directory tab so user sees the newly created account immediately
       setSelectedVoltRep(null);
       setPreApproveForm({
         email: '',
@@ -422,9 +445,11 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
         homeAirport: 'PHX - Phoenix Sky Harbor',
         role: 'Field Sales Representative',
         title: 'Level 1 Field Sales Representative',
-        managerId: 'user_mgr_marcus',
+        managerId: 'user_owner_gurpreet',
         includeVoltStats: true,
       });
+      setSearchTerm('');
+      setActiveTab('active');
     } else {
       setActionNotice({ type: 'error', message: 'Failed to create and pre-authorize account.' });
     }
@@ -641,13 +666,13 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredPending.map((user) => {
+                {filteredPending.map((user, index) => {
                   const roleValue = selectedRoles[user.id] || 'Representative';
                   const isChecked = selectedPendingIds.has(user.id);
 
                   return (
                     <div
-                      key={user.id}
+                      key={`pending_${user.id}_${index}`}
                       className={`p-4 rounded-2xl bg-slate-950 border transition-all space-y-3 ${
                         isChecked ? 'border-amber-400/70 bg-amber-950/10' : 'border-amber-500/25'
                       }`}
@@ -1184,8 +1209,26 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
                     }
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                   >
-                    {users
-                      .filter((u) => u.role === 'Regional Director' || u.role === 'Blitz Manager' || u.role === 'Team Lead' || u.role === 'Manager')
+                    {uniqueUsers.some((u) => u.id === 'user_owner_gurpreet') ? (
+                      <option value="user_owner_gurpreet">
+                        Gurpreet Multani (Founder & Chief Executive - Direct)
+                      </option>
+                    ) : (
+                      <option value="user_owner_gurpreet">
+                        Gurpreet Multani (Founder & Executive - Direct)
+                      </option>
+                    )}
+                    {uniqueUsers
+                      .filter(
+                        (u) =>
+                          u.id !== 'user_owner_gurpreet' &&
+                          (u.role === 'Admin' ||
+                            u.role === 'Regional Director' ||
+                            u.role === 'Blitz Manager' ||
+                            u.role === 'Team Lead' ||
+                            u.role === 'Manager' ||
+                            (u.email || '').toLowerCase().includes('gurpreet'))
+                      )
                       .map((mgr) => (
                         <option key={mgr.id} value={mgr.id}>
                           {mgr.displayName} ({mgr.role})
@@ -1312,14 +1355,14 @@ export const AccessApprovalsModal: React.FC<AccessApprovalsModalProps> = ({
             )}
 
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-              {filteredApproved.map((u) => {
+              {filteredApproved.map((u, index) => {
                 const isMe = u.id === currentUser?.id;
-                const isFounder = u.email.toLowerCase().includes('gurpreet');
+                const isFounder = (u.email || '').toLowerCase().includes('gurpreet');
                 const isChecked = selectedActiveIds.has(u.id);
 
                 return (
                   <div
-                    key={u.id}
+                    key={`approved_${u.id}_${index}`}
                     className={`p-3 rounded-xl bg-slate-950 border flex items-center justify-between gap-3 transition-all ${
                       isChecked ? 'border-cyan-500/60 bg-cyan-950/10' : 'border-slate-800'
                     }`}

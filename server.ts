@@ -2,8 +2,11 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initMobileReachScheduler, runMobileReachSync, getMobileReachSyncState } from './src/server/mobileReachSync.ts';
+import { db } from './src/lib/firebase.ts';
+import { doc, setDoc } from 'firebase/firestore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +31,133 @@ async function startServer() {
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
+  // Fetch all persisted users
+  app.get('/api/users', async (_req, res) => {
+    try {
+      const jsonPath = path.resolve(__dirname, 'data/users.json');
+      if (fs.existsSync(jsonPath)) {
+        const raw = await fs.promises.readFile(jsonPath, 'utf8');
+        return res.json({ success: true, users: JSON.parse(raw) });
+      }
+      res.json({ success: true, users: [] });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Persist created or pre-approved user directly to data store
+  app.post('/api/users/persist', async (req, res) => {
+    try {
+      const { user } = req.body;
+      if (!user || !user.id || !user.email) {
+        return res.status(400).json({ success: false, error: 'User must have an id and email.' });
+      }
+
+      // 1. Persist to data/users.json (Rock-solid JSON store)
+      const dataDir = path.resolve(__dirname, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      const jsonPath = path.join(dataDir, 'users.json');
+      let currentUsers: any[] = [];
+      if (fs.existsSync(jsonPath)) {
+        try {
+          const raw = await fs.promises.readFile(jsonPath, 'utf8');
+          currentUsers = JSON.parse(raw);
+        } catch {
+          currentUsers = [];
+        }
+      }
+
+      const existingIndex = currentUsers.findIndex(
+        (u) => u.id === user.id || (u.email && u.email.toLowerCase() === (user.email || '').toLowerCase())
+      );
+      if (existingIndex !== -1) {
+        currentUsers[existingIndex] = { ...currentUsers[existingIndex], ...user };
+      } else {
+        currentUsers.unshift(user);
+      }
+      await fs.promises.writeFile(jsonPath, JSON.stringify(currentUsers, null, 2), 'utf8');
+
+      // 2. Persist directly to Cloud Firestore from server
+      try {
+        await setDoc(doc(db, 'users', user.id), {
+          ...user,
+          approvalStatus: user.approvalStatus || 'approved',
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        console.log(`[Cloud Firestore Persist] Saved ${user.id} (${user.email}) to Firestore database`);
+      } catch (cloudErr) {
+        console.warn('[Cloud Firestore Persist notice]:', cloudErr);
+      }
+
+      // 2. Safely sync to src/data/nonVoltData.ts
+      try {
+        const filePath = path.resolve(__dirname, 'src/data/nonVoltData.ts');
+        let fileContent = await fs.promises.readFile(filePath, 'utf8');
+
+        const targetId = user.id;
+        const targetEmail = (user.email || '').toLowerCase().trim();
+
+        const idPattern = new RegExp(`id:\\s*['"]${targetId}['"]`);
+        const emailPattern = new RegExp(`email:\\s*['"]${targetEmail}['"]`, 'i');
+
+        if (!idPattern.test(fileContent) && !emailPattern.test(fileContent)) {
+          const userCode = `  {\n` +
+            `    id: ${JSON.stringify(user.id)},\n` +
+            `    email: ${JSON.stringify(user.email)},\n` +
+            `    firstName: ${JSON.stringify(user.firstName || '')},\n` +
+            `    lastName: ${JSON.stringify(user.lastName || '')},\n` +
+            `    displayName: ${JSON.stringify(user.displayName || '')},\n` +
+            `    role: ${JSON.stringify(user.role || 'Representative')},\n` +
+            `    title: ${JSON.stringify(user.title || 'Fiber Field Specialist')},\n` +
+            `    approvalStatus: ${JSON.stringify(user.approvalStatus || 'approved')},\n` +
+            `    approvedBy: ${JSON.stringify(user.approvedBy || 'Gurpreet Multani (Founder)')},\n` +
+            `    approvedAt: ${JSON.stringify(user.approvedAt || new Date().toISOString())},\n` +
+            (user.managerId ? `    managerId: ${JSON.stringify(user.managerId)},\n` : '') +
+            (user.managerName ? `    managerName: ${JSON.stringify(user.managerName)},\n` : '') +
+            `    phone: ${JSON.stringify(user.phone || '(555) 000-0000')},\n` +
+            `    dateOfBirth: ${JSON.stringify(user.dateOfBirth || '1998-01-01')},\n` +
+            `    shirtSize: ${JSON.stringify(user.shirtSize || 'L')},\n` +
+            (user.badgePhotoUrl ? `    badgePhotoUrl: ${JSON.stringify(user.badgePhotoUrl)},\n` : '') +
+            (user.idPhotoUrl ? `    idPhotoUrl: ${JSON.stringify(user.idPhotoUrl)},\n` : '') +
+            `    emergencyContact: ${JSON.stringify(user.emergencyContact || { name: 'Primary Contact', phone: '(555) 000-0000', relationship: 'Family' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    directDeposit: ${JSON.stringify(user.directDeposit || { bankName: 'Pending Setup', accountNumber: '••••••••0000', routingNumber: '000000000', accountType: 'checking', taxIdType: 'SSN', taxIdNumber: 'XXX-XX-0000' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    fiberAgreement: ${JSON.stringify(user.fiberAgreement || { status: 'signed', version: 'v2026.2' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    travelProfile: ${JSON.stringify(user.travelProfile || { homeAirport: 'DFW - Dallas/Fort Worth', ableToTravel: true, smsTravelUpdatesConsent: true }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    payRates: ${JSON.stringify(user.payRates || { 'Sparklight Fiber': 320, 'T-Mobile Fiber': 320, 'AT&T Fiber': 290, 'Frontier Fiber': 310, 'Quantum Fiber': 280, 'Brightspeed': 260, 'Spectrum Gig': 250, 'Kinetic Fiber': 270 }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    stats: ${JSON.stringify(user.stats || { installs: 0, cancels: 0, scheduled: 0, chargebacks: 0, totalSales: 0, installRate: 100, cancelRate: 0, totalCommission: 0 }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    createdAt: ${JSON.stringify(user.createdAt || new Date().toISOString())},\n` +
+            `    updatedAt: ${JSON.stringify(new Date().toISOString())},\n` +
+            `  },\n`;
+
+          const marker = `export const NON_VOLT_BLITZES`;
+          if (fileContent.includes(marker)) {
+            const parts = fileContent.split(marker);
+            const lastBracketIdx = parts[0].lastIndexOf('];');
+            if (lastBracketIdx !== -1) {
+              let before = parts[0].slice(0, lastBracketIdx).trimEnd();
+              if (!before.endsWith(',')) {
+                before += ',';
+              }
+              const after = '\n' + parts[0].slice(lastBracketIdx);
+              fileContent = before + '\n' + userCode + after + marker + parts[1];
+              await fs.promises.writeFile(filePath, fileContent, 'utf8');
+            }
+          }
+        }
+      } catch (fileErr) {
+        console.warn('[Sync to nonVoltData notice]:', fileErr);
+      }
+
+      console.log(`[User Persist] Successfully persisted user ${user.email} (${user.id})`);
+      return res.json({ success: true, user });
+    } catch (err: any) {
+      console.error('[Persist Error]:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to persist user' });
+    }
   });
 
   // OCR and AI parsing endpoint for carrier sale confirmation screenshots

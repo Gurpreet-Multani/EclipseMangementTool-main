@@ -31,7 +31,7 @@ export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => 
     password: '',
     role: 'Field Sales Representative' as UserRole,
     title: 'Level 1 Field Sales Representative',
-    managerId: 'user_rep_jordan',
+    managerId: 'user_owner_gurpreet',
   });
   const [createStatus, setCreateStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -600,11 +600,16 @@ export const RbacMatrixModal: React.FC<RbacMatrixModalProps> = ({ onClose }) => 
                 onChange={(e) => setFormData((prev) => ({ ...prev, managerId: e.target.value }))}
                 className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName} ({u.role})
-                  </option>
-                ))}
+                <option value="user_owner_gurpreet">
+                  Gurpreet Multani (Founder & Chief Executive - Direct)
+                </option>
+                {users
+                  .filter((u) => u.id !== 'user_owner_gurpreet' && (u.role === 'Admin' || u.role === 'Regional Director' || u.role === 'Blitz Manager' || u.role === 'Team Lead' || u.role === 'Manager'))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.displayName} ({u.role})
+                    </option>
+                  ))}
               </select>
 
               <button
