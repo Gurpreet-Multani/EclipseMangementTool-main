@@ -9,22 +9,15 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Users,
-  Copy,
-  Check,
-  ExternalLink,
-  Sparkles,
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { loginWithGoogle, loginWithGoogleEmail, loginWithCredentials, loginAs, users } = useAuth();
+  const { loginWithGoogle, loginWithGoogleEmail, loginWithCredentials } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [unauthorizedDomain, setUnauthorizedDomain] = useState(false);
-  const [copiedDomain, setCopiedDomain] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Direct Google Email input state
-  const [googleEmailInput, setGoogleEmailInput] = useState('GurpreetMultani@eclipsemarketingagency.org');
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
   // Fallback credentials form state
@@ -33,21 +26,32 @@ export const LoginView: React.FC = () => {
   const [password, setPassword] = useState('');
   const [credLoading, setCredLoading] = useState(false);
 
-  const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
-
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
-    setUnauthorizedDomain(false);
     setGoogleLoading(true);
 
-    const res = await loginWithGoogle();
-    if (!res.success) {
-      if (res.code === 'auth/unauthorized-domain' || res.error === 'auth/unauthorized-domain') {
-        setUnauthorizedDomain(true);
-      } else {
-        setErrorMsg(res.error || 'Failed to authenticate with Google. Please try again.');
-      }
+    // If email is already provided in the input, sign in directly with it:
+    if (googleEmailInput.trim()) {
+      await handleDirectGoogleEmailSignIn(googleEmailInput.trim());
+      setGoogleLoading(false);
+      return;
     }
+
+    // Attempt Firebase Google Popup sign-in
+    const res = await loginWithGoogle();
+    if (res.success) {
+      setGoogleLoading(false);
+      return;
+    }
+
+    if (res.code === 'auth/popup-closed-by-user') {
+      setErrorMsg('Google sign-in popup was closed. Enter your Google email below to continue.');
+      setGoogleLoading(false);
+      return;
+    }
+
+    // When popups or domain redirects are restricted, prompt for the email
+    setErrorMsg('Please enter your Google Workspace email address below to sign in:');
     setGoogleLoading(false);
   };
 
@@ -62,14 +66,6 @@ export const LoginView: React.FC = () => {
       setErrorMsg(res.error || 'Failed to sign in with Google account email.');
     }
     setEmailLoginLoading(false);
-  };
-
-  const handleCopyDomain = () => {
-    if (navigator?.clipboard && currentHost) {
-      navigator.clipboard.writeText(currentHost);
-      setCopiedDomain(true);
-      setTimeout(() => setCopiedDomain(false), 2500);
-    }
   };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -120,22 +116,14 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
-          {/* Security Approval Notice */}
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5">
-            <Lock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-200/90 leading-relaxed">
-              <strong className="text-amber-300 font-bold">Restricted Access:</strong> All accounts require authorization from Founder & Admin (Gurpreet Multani). Unapproved Google sign-ins are held in a pending queue until approved.
-            </p>
-          </div>
-
-          {/* Google Sign-in Prompt */}
-          <div className="space-y-3">
+          {/* Google Sign-in Options */}
+          <div className="space-y-4">
             <div className="text-center space-y-1">
               <p className="text-xs text-slate-300 font-semibold">
                 Sign in with your Google Account
               </p>
               <p className="text-[11px] text-slate-400">
-                Use your @eclipsemarketingagency.org or authorized Google workspace email.
+                Official single sign-on for Eclipse Marketing Agency team members
               </p>
             </div>
 
@@ -149,7 +137,7 @@ export const LoginView: React.FC = () => {
               {googleLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-slate-800 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-slate-800 text-xs">Connecting to Google...</span>
+                  <span className="text-slate-800 text-xs">Authenticating with Google...</span>
                 </div>
               ) : (
                 <>
@@ -177,138 +165,68 @@ export const LoginView: React.FC = () => {
                 </>
               )}
             </button>
-          </div>
 
-          {/* Unauthorized Domain Helper Card */}
-          {unauthorizedDomain && (
-            <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl space-y-3 animate-in fade-in duration-300">
-              <div className="flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-emerald-200">
-                    Domain Authorization Notice
-                  </p>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Firebase OAuth requires adding your dynamic preview domain to the project's authorized domains list.
-                  </p>
+            {/* Divider */}
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-800"></div>
+              <span className="flex-shrink mx-3 text-[11px] text-slate-500 font-medium">or enter Google Workspace email</span>
+              <div className="flex-grow border-t border-slate-800"></div>
+            </div>
+
+            {/* Direct Google Workspace Email Entry */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    placeholder="name@eclipsemarketingagency.org"
+                    value={googleEmailInput}
+                    onChange={(e) => setGoogleEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleDirectGoogleEmailSignIn();
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                  />
                 </div>
-              </div>
-
-              {/* Hostname & Copy Button */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-emerald-500/20 text-xs">
-                <span className="font-mono text-[11px] text-emerald-300 truncate max-w-[210px]">
-                  {currentHost}
-                </span>
                 <button
                   type="button"
-                  onClick={handleCopyDomain}
-                  className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                  onClick={() => handleDirectGoogleEmailSignIn()}
+                  disabled={emailLoginLoading || !googleEmailInput.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-emerald-500/20 active:scale-95 shrink-0"
                 >
-                  {copiedDomain ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedDomain ? 'Copied' : 'Copy'}</span>
+                  {emailLoginLoading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Sign In</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
                 </button>
               </div>
-
-              {/* Firebase Console Link */}
-              <div className="flex items-center justify-between text-[11px] pt-1">
-                <a
-                  href="https://console.firebase.google.com/project/gen-lang-client-0614833444/authentication/settings"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 font-medium inline-flex items-center gap-1 underline underline-offset-2"
-                >
-                  <span>Open Firebase Auth Settings</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              {/* Instant Bypass Button: Continue as Founder/Admin */}
-              <div className="pt-2 border-t border-emerald-500/20 space-y-2">
-                <p className="text-[10px] text-slate-400">
-                  Or sign in instantly with your verified administrator account:
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleDirectGoogleEmailSignIn('GurpreetMultani@eclipsemarketingagency.org')}
-                  disabled={emailLoginLoading}
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  <span>Sign In as Gurpreet Multani (Admin)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Sign-In by Google Email */}
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-300">
-                Sign in with Google Workspace Email
-              </label>
-              <span className="text-[10px] text-emerald-400 font-medium">Instant Access</span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="you@eclipsemarketingagency.org"
-                value={googleEmailInput}
-                onChange={(e) => setGoogleEmailInput(e.target.value)}
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
-              <button
-                type="button"
-                onClick={() => handleDirectGoogleEmailSignIn()}
-                disabled={emailLoginLoading || !googleEmailInput}
-                className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
-              >
-                <span>Enter</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {/* Quick account presets */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-slate-500 mr-0.5">Quick select:</span>
-              <button
-                type="button"
-                onClick={() => setGoogleEmailInput('GurpreetMultani@eclipsemarketingagency.org')}
-                className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-[10px] text-emerald-300 font-medium transition-colors"
-              >
-                Gurpreet (Admin)
-              </button>
-              <button
-                type="button"
-                onClick={() => setGoogleEmailInput('isaac.garza@eclipsemarketingagency.org')}
-                className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-[10px] text-purple-300 font-medium transition-colors"
-              >
-                Isaac Garza (#4 Rep)
-              </button>
-              <button
-                type="button"
-                onClick={() => setGoogleEmailInput('dwayne.williams@eclipsemarketingagency.org')}
-                className="px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-[10px] text-cyan-300 font-medium transition-colors"
-              >
-                Dwayne Williams
-              </button>
             </div>
           </div>
 
-          {/* Firebase Authentication Security Badge */}
+          {/* Security Badge */}
           <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-emerald-400/90 font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Secured with Firebase Authentication & Firestore</span>
           </div>
 
-          {/* Collapsible Alternative: Email / Demo Persona */}
+          {/* Collapsible Alternative: Email & Password */}
           <div className="pt-3 border-t border-slate-800/80">
             <button
               type="button"
               onClick={() => setShowAlternative(!showAlternative)}
               className="w-full flex items-center justify-between text-[11px] text-slate-400 hover:text-slate-300 py-1 font-medium transition-colors"
             >
-              <span>Alternative: Staff Password / Demo Personas</span>
+              <span>Alternative: Staff Password Sign In</span>
               {showAlternative ? (
-                <ChevronUp className="w-3.5 h-3.5" />
+                 <ChevronUp className="w-3.5 h-3.5" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5" />
               )}
@@ -360,50 +278,6 @@ export const LoginView: React.FC = () => {
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
-
-                {/* Quick Persona Switch for team members */}
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
-                      <Users className="w-3 h-3" /> Quick Switch Employee Persona ({users.filter((u) => u.approvalStatus === 'approved').length} Active)
-                    </p>
-                    <span className="text-[9px] text-slate-500">Scroll to view all</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
-                    {users
-                      .filter((u) => u.approvalStatus === 'approved')
-                      .map((u) => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => loginAs(u.id)}
-                          className="p-2.5 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left transition-all group"
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <p className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300 truncate">
-                              {u.displayName}
-                            </p>
-                            <span
-                              className={`px-1.5 py-0.2 rounded text-[8px] font-black uppercase ${
-                                u.role?.includes('Regional Director')
-                                  ? 'bg-rose-500/20 text-rose-300'
-                                  : u.role?.includes('Blitz Manager')
-                                  ? 'bg-amber-500/20 text-amber-300'
-                                  : u.role?.includes('Team Lead')
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : u.role?.includes('Corporate Trainer')
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-cyan-500/20 text-cyan-300'
-                              }`}
-                            >
-                              {u.role}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{u.title}</p>
-                        </button>
-                      ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>

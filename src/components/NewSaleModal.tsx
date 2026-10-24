@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { US_STATES } from '../lib/states';
-import { SAMPLE_RECEIPTS, SampleReceipt } from '../lib/sampleCarrierReceipts';
 
 interface NewSaleModalProps {
   onClose: () => void;
@@ -133,15 +132,6 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ onClose, initialMode
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  // 1-Click sample preset handler
-  const handleLoadSample = (sample: SampleReceipt) => {
-    setAnalyzeError(null);
-    setScreenshotFileName(`${sample.carrierName}_Sample_Confirmation.png`);
-    const dataUrl = sample.generateDataUrl();
-    setScreenshotDataUrl(dataUrl);
-    parseScreenshotWithAI(dataUrl, 'image/png');
   };
 
   // Call backend API /api/parse-sale-screenshot
@@ -611,43 +601,6 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ onClose, initialMode
                 )}
               </div>
             )}
-
-            {/* 1-Click Sample Testing Section */}
-            <div className="pt-2 border-t border-slate-800/80">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                Test with Sample Carrier Receipts (1-Click Demo):
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {SAMPLE_RECEIPTS.map((sample) => (
-                  <button
-                    key={sample.id}
-                    type="button"
-                    onClick={() => handleLoadSample(sample)}
-                    disabled={isAnalyzing}
-                    className="p-2 text-left rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between group cursor-pointer"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
-                          {sample.carrierName}
-                        </span>
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: sample.accentColor }}
-                        ></span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                        {sample.crmName}
-                      </p>
-                    </div>
-                    <span className="text-[9px] text-cyan-400 font-mono mt-1 flex items-center gap-0.5">
-                      <span>Simulate Upload</span>
-                      <ArrowRight className="w-2.5 h-2.5" />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 

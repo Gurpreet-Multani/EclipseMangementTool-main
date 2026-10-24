@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { useAuth } from '../context/AuthContext';
 import eclipseLogo from '../Images/EclipseLogo.JPG';
 import {
   Clock,
@@ -25,7 +24,6 @@ export const PendingApprovalView: React.FC<PendingApprovalViewProps> = ({
   onRefreshStatus,
   onLogout,
 }) => {
-  const { loginAs, users } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshedNotice, setRefreshedNotice] = useState<string | null>(null);
 
@@ -166,22 +164,6 @@ export const PendingApprovalView: React.FC<PendingApprovalViewProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>Contact Administrator: GurpreetMultani@eclipsemarketingagency.org</span>
             </p>
-          </div>
-
-          {/* Fast Switch for Admin Testing */}
-          <div className="pt-2 border-t border-slate-800/50">
-            <p className="text-[10px] text-slate-500 text-center mb-2">
-              (Testing Mode: Switch back to Admin persona to manage this approval request)
-            </p>
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => loginAs('user_owner_gurpreet')}
-                className="px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-amber-300 text-[11px] font-semibold transition-colors"
-              >
-                Log In as Gurpreet Multani (Admin)
-              </button>
-            </div>
           </div>
         </div>
       </div>

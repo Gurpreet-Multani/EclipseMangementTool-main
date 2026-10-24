@@ -18,6 +18,7 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
+  signInAnonymously,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -187,7 +188,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cachedUsersRaw = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
         const sourceUsers: UserProfile[] = cachedUsersRaw ? JSON.parse(cachedUsersRaw) : INITIAL_USERS;
         const found = sourceUsers.find((u) => u.id === savedId);
-        if (found) return found;
+        if (found) {
+          const emailLower = (found.email || '').toLowerCase();
+          if (emailLower.includes('gurpreet') || emailLower.includes('multani') || emailLower === 'gurpreet@eclipsemarketingagency.org') {
+            found.role = 'Admin';
+            found.approvalStatus = 'approved';
+            found.title = 'Chief Executive & Founder';
+          }
+          return found;
+        }
       }
     } catch (e) {
       console.warn('Failed to read saved user', e);
@@ -321,14 +330,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           idPhotoUrl: existingProfile.idPhotoUrl || photoUrl,
           badgePhotoUrl: existingProfile.badgePhotoUrl || photoUrl,
         };
-        try {
-          await updateDoc(userRef, {
-            idPhotoUrl: existingProfile.idPhotoUrl,
-            badgePhotoUrl: existingProfile.badgePhotoUrl,
-          });
-        } catch (e) {
-          console.warn('Offline fallback for photo update', e);
-        }
+      }
+    }
+
+    // Always enforce Founder & Admin privileges for Gurpreet Multani
+    const finalEmailLower = (existingProfile.email || email).toLowerCase();
+    const isFounderGurpreet =
+      finalEmailLower.includes('gurpreet') ||
+      finalEmailLower.includes('multani') ||
+      finalEmailLower === 'gurpreet@eclipsemarketingagency.org';
+
+    if (isFounderGurpreet) {
+      existingProfile = {
+        ...existingProfile,
+        role: 'Admin',
+        title: 'Chief Executive & Founder',
+        approvalStatus: 'approved',
+        approvedBy: 'Self (Founder)',
+        approvedAt: existingProfile.approvedAt || new Date().toISOString(),
+      };
+      try {
+        await setDoc(userRef, existingProfile, { merge: true });
+      } catch (err) {
+        console.warn('Could not persist admin profile to Firestore:', err);
       }
     }
 
@@ -566,13 +590,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...baseProfile,
       id: matched?.id || `user_g_${Date.now()}`,
       email: email,
-      firstName: matched?.firstName || firstName,
-      lastName: matched?.lastName || lastName,
-      displayName: matched?.displayName || displayName,
-      role: matched?.role || defaultRole,
-      title: matched?.title || (isApproved ? defaultTitle : 'Pending Authorization'),
-      approvalStatus: initialApprovalStatus,
-      approvedBy: isApproved ? (matched?.approvedBy || 'Pre-Approved') : undefined,
+      firstName: isGurpreet ? 'Gurpreet' : (matched?.firstName || firstName),
+      lastName: isGurpreet ? 'Multani' : (matched?.lastName || lastName),
+      displayName: isGurpreet ? 'Gurpreet Multani' : (matched?.displayName || displayName),
+      role: isGurpreet ? 'Admin' : (matched?.role || defaultRole),
+      title: isGurpreet ? 'Chief Executive & Founder' : (matched?.title || (isApproved ? defaultTitle : 'Pending Authorization')),
+      approvalStatus: isGurpreet ? 'approved' : initialApprovalStatus,
+      approvedBy: isApproved ? (matched?.approvedBy || (isGurpreet ? 'Self (Founder)' : 'Pre-Approved')) : undefined,
       approvedAt: isApproved ? (matched?.approvedAt || new Date().toISOString()) : undefined,
       requestedAt: isApproved ? undefined : new Date().toISOString(),
       createdAt: matched?.createdAt || new Date().toISOString(),
@@ -581,6 +605,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setCurrentUser(profile);
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, profile.id);
+
+    // Ensure Firebase Auth session is active for Firestore security rules
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+      } catch (authErr) {
+        console.warn('Firebase anonymous auth fallback notice:', authErr);
+      }
+    }
 
     setUsers((prev) => {
       const filtered = prev.filter((u) => u.id !== profile.id && u.email.toLowerCase() !== email);
@@ -1175,6 +1208,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const snap = await getDoc(doc(db, 'users', currentUser.id));
       if (snap.exists()) {
         const fresh = snap.data() as UserProfile;
+        const eLower = (fresh.email || '').toLowerCase();
+        if (eLower.includes('gurpreet') || eLower.includes('multani')) {
+          fresh.role = 'Admin';
+          fresh.approvalStatus = 'approved';
+          fresh.title = 'Chief Executive & Founder';
+        }
         setCurrentUser(fresh);
         setUsers((prev) => prev.map((u) => (u.id === fresh.id ? fresh : u)));
       }

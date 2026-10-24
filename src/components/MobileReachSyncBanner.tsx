@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MobileReachSyncStatus } from '../types';
+import { useAuth } from '../context/AuthContext';
 import { RefreshCw, ExternalLink, Trophy, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Zap } from 'lucide-react';
 
 interface MobileReachSyncBannerProps {
@@ -13,6 +14,7 @@ export const MobileReachSyncBanner: React.FC<MobileReachSyncBannerProps> = ({
   onSyncNow,
   onOpenLeaderboard,
 }) => {
+  const { currentUser } = useAuth();
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
@@ -78,9 +80,11 @@ export const MobileReachSyncBanner: React.FC<MobileReachSyncBannerProps> = ({
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
 
-            <span className="text-[10px] font-semibold text-slate-400">
-              • Rep: <strong className="text-slate-200">Gurpreet Multani</strong>
-            </span>
+            {currentUser && (
+              <span className="text-[10px] font-semibold text-slate-400">
+                • Rep: <strong className="text-slate-200">{currentUser.displayName || 'Authorized Representative'}</strong>
+              </span>
+            )}
           </div>
 
           <div className="text-[11px] text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-1">
