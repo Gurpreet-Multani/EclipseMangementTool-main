@@ -266,6 +266,31 @@ export const LoginView: React.FC = () => {
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
+            {/* Quick account presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-slate-500 mr-0.5">Quick select:</span>
+              <button
+                type="button"
+                onClick={() => setGoogleEmailInput('GurpreetMultani@eclipsemarketingagency.org')}
+                className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-[10px] text-emerald-300 font-medium transition-colors"
+              >
+                Gurpreet (Admin)
+              </button>
+              <button
+                type="button"
+                onClick={() => setGoogleEmailInput('isaac.garza@eclipsemarketingagency.org')}
+                className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-[10px] text-purple-300 font-medium transition-colors"
+              >
+                Isaac Garza (#4 Rep)
+              </button>
+              <button
+                type="button"
+                onClick={() => setGoogleEmailInput('dwayne.williams@eclipsemarketingagency.org')}
+                className="px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-[10px] text-cyan-300 font-medium transition-colors"
+              >
+                Dwayne Williams
+              </button>
+            </div>
           </div>
 
           {/* Firebase Authentication Security Badge */}
@@ -336,42 +361,47 @@ export const LoginView: React.FC = () => {
                   </button>
                 </form>
 
-                {/* Quick Persona Switch for local test */}
+                {/* Quick Persona Switch for team members */}
                 <div className="pt-2">
-                  <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 flex items-center gap-1">
-                    <Users className="w-3 h-3" /> Quick Switch Test Persona by Role
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {users.slice(0, 5).map((u) => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => loginAs(u.id)}
-                        className="p-2.5 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left transition-all group"
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300 truncate">
-                            {u.displayName}
-                          </p>
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[8px] font-black uppercase ${
-                              u.role?.includes('Regional Director')
-                                ? 'bg-rose-500/20 text-rose-300'
-                                : u.role?.includes('Blitz Manager')
-                                ? 'bg-amber-500/20 text-amber-300'
-                                : u.role?.includes('Team Lead')
-                                ? 'bg-purple-500/20 text-purple-300'
-                                : u.role?.includes('Corporate Trainer')
-                                ? 'bg-emerald-500/20 text-emerald-300'
-                                : 'bg-cyan-500/20 text-cyan-300'
-                            }`}
-                          >
-                            {u.role}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{u.title}</p>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Quick Switch Employee Persona ({users.filter((u) => u.approvalStatus === 'approved').length} Active)
+                    </p>
+                    <span className="text-[9px] text-slate-500">Scroll to view all</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                    {users
+                      .filter((u) => u.approvalStatus === 'approved')
+                      .map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => loginAs(u.id)}
+                          className="p-2.5 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left transition-all group"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300 truncate">
+                              {u.displayName}
+                            </p>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[8px] font-black uppercase ${
+                                u.role?.includes('Regional Director')
+                                  ? 'bg-rose-500/20 text-rose-300'
+                                  : u.role?.includes('Blitz Manager')
+                                  ? 'bg-amber-500/20 text-amber-300'
+                                  : u.role?.includes('Team Lead')
+                                  ? 'bg-purple-500/20 text-purple-300'
+                                  : u.role?.includes('Corporate Trainer')
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-cyan-500/20 text-cyan-300'
+                              }`}
+                            >
+                              {u.role}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{u.title}</p>
+                        </button>
+                      ))}
                   </div>
                 </div>
               </div>

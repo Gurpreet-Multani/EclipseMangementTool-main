@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord, CustomerSmsConfig, CustomerSmsMessage } from '../types';
+import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord, CustomerSmsConfig, CustomerSmsMessage, MobileReachSyncStatus, MobileReachLeaderboardEntry } from '../types';
 import { INITIAL_AVAILABILITY, INITIAL_BLITZES, INITIAL_COURSES, INITIAL_JOIN_REQUESTS, INITIAL_MESSAGES, INITIAL_NOTIFICATIONS, INITIAL_SALES } from '../lib/seedData';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
@@ -81,6 +81,10 @@ interface DataContextType {
   };
   isUserBookedForBlitz: (blitzId: string, userId?: string) => boolean;
   refreshData: () => void;
+  // MobileReach 24/7 D2D Automated Cloud Sync
+  mobileReachStatus: MobileReachSyncStatus | null;
+  syncMobileReachNow: (email?: string, password?: string) => Promise<{ success: boolean; count: number; message: string }>;
+  fetchMobileReachData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -100,7 +104,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sales, setSales] = useState<SaleOrder[]>(() => {
     try {
       const cached = localStorage.getItem(LOCAL_SALES_KEY);
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed: SaleOrder[] = JSON.parse(cached);
+        const map = new Map<string, SaleOrder>();
+        INITIAL_SALES.forEach((s) => map.set(s.id, s));
+        parsed.forEach((s) => map.set(s.id, s));
+        return Array.from(map.values());
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -110,7 +120,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [blitzes, setBlitzes] = useState<BlitzEvent[]>(() => {
     try {
       const cached = localStorage.getItem(LOCAL_BLITZES_KEY);
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed: BlitzEvent[] = JSON.parse(cached);
+        const map = new Map<string, BlitzEvent>();
+        INITIAL_BLITZES.forEach((b) => map.set(b.id, b));
+        parsed.forEach((b) => map.set(b.id, b));
+        return Array.from(map.values());
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -280,7 +296,164 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [currentUser?.id]);
 
-  const refreshData = () => {};
+  // MobileReach 24/7 D2D Automated Cloud Sync State
+  const [mobileReachStatus, setMobileReachStatus] = useState<MobileReachSyncStatus | null>(() => {
+    try {
+      const cached = localStorage.getItem('eclipse_mobilereach_status');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.warn(e);
+    }
+    return null;
+  });
+
+  const fetchMobileReachData = async () => {
+    try {
+      const res = await fetch('/api/mobilereach/data');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          const statusObj: MobileReachSyncStatus = {
+            isSyncing: false,
+            lastSyncTime: json.lastSyncTime,
+            nextSyncTime: json.nextSyncTime,
+            syncIntervalHours: 24,
+            totalDeals: json.totalDeals,
+            statusBreakdown: json.statusBreakdown || { installed: 0, scheduled: 0, jeopardy: 0, cancelled: 0, other: 0 },
+            carrierBreakdown: json.carrierBreakdown || { sparklight: 0, tmobile: 0, other: 0 },
+            lastError: null,
+            leaderboard: json.leaderboard || { month: [], week: [], all: [] },
+            authenticatedUser: json.authenticatedUser || null,
+          };
+          setMobileReachStatus(statusObj);
+          localStorage.setItem('eclipse_mobilereach_status', JSON.stringify(statusObj));
+
+          if (Array.isArray(json.orders) && json.orders.length > 0) {
+            setSales((prevSales) => {
+              const merged = [...prevSales];
+              for (const order of json.orders) {
+                const idx = merged.findIndex((m) => m.id === order.id || (order.orderNumber && m.orderNumber === order.orderNumber));
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx], ...order };
+                } else {
+                  merged.unshift(order);
+                }
+              }
+              return merged;
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch MobileReach data:', err);
+    }
+  };
+
+  const syncMobileReachNow = async (email?: string, password?: string) => {
+    try {
+      setMobileReachStatus((prev) =>
+        prev
+          ? { ...prev, isSyncing: true }
+          : {
+              isSyncing: true,
+              lastSyncTime: null,
+              nextSyncTime: null,
+              syncIntervalHours: 24,
+              totalDeals: 0,
+              statusBreakdown: { installed: 0, scheduled: 0, jeopardy: 0, cancelled: 0, other: 0 },
+              carrierBreakdown: { sparklight: 0, tmobile: 0, other: 0 },
+              lastError: null,
+              leaderboard: { month: [], week: [], all: [] },
+              authenticatedUser: null,
+            }
+      );
+
+      const res = await fetch('/api/mobilereach/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'MobileReach sync failed');
+      }
+
+      const statusObj: MobileReachSyncStatus = {
+        isSyncing: false,
+        lastSyncTime: json.lastSyncTime,
+        nextSyncTime: json.nextSyncTime,
+        syncIntervalHours: json.syncIntervalHours || 24,
+        totalDeals: json.totalDeals,
+        statusBreakdown: json.statusBreakdown || { installed: 0, scheduled: 0, jeopardy: 0, cancelled: 0, other: 0 },
+        carrierBreakdown: json.carrierBreakdown || { sparklight: 0, tmobile: 0, other: 0 },
+        lastError: null,
+        leaderboard: json.leaderboard || { month: [], week: [], all: [] },
+        authenticatedUser: json.authenticatedUser || null,
+      };
+
+      setMobileReachStatus(statusObj);
+      localStorage.setItem('eclipse_mobilereach_status', JSON.stringify(statusObj));
+
+      if (Array.isArray(json.syncedOrders) && json.syncedOrders.length > 0) {
+        setSales((prevSales) => {
+          const merged = [...prevSales];
+          for (const order of json.syncedOrders) {
+            const idx = merged.findIndex((m) => m.id === order.id || (order.orderNumber && m.orderNumber === order.orderNumber));
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...order };
+            } else {
+              merged.unshift(order);
+            }
+          }
+          return merged;
+        });
+
+        try {
+          for (const order of json.syncedOrders) {
+            await setDoc(doc(db, 'sales', order.id), order, { merge: true });
+          }
+        } catch (fsErr) {
+          console.warn('Notice: Firestore remote write skipped:', fsErr);
+        }
+      }
+
+      const notif: BlitzNotification = {
+        id: `notif_mr_${Date.now()}`,
+        title: 'MobileReach 24/7 Cloud Sync Complete',
+        message: `Successfully synchronized ${json.totalDeals} live orders (${json.statusBreakdown?.installed || 0} installed) & real leaderboard rankings from d2d.mobilereach.store.`,
+        type: 'system',
+        timestamp: new Date().toISOString(),
+        read: false,
+        linkTab: 'work',
+      };
+      setNotifications((prev) => [notif, ...prev]);
+
+      return {
+        success: true,
+        count: json.totalDeals || 0,
+        message: json.message || 'MobileReach 24/7 sync successful',
+      };
+    } catch (err: any) {
+      console.error('Manual MobileReach sync error:', err);
+      setMobileReachStatus((prev) => (prev ? { ...prev, isSyncing: false, lastError: err.message } : null));
+      return {
+        success: false,
+        count: 0,
+        message: err.message || 'MobileReach sync failed',
+      };
+    }
+  };
+
+  const refreshData = () => {
+    fetchMobileReachData();
+  };
+
+  useEffect(() => {
+    fetchMobileReachData();
+    const timer = setInterval(fetchMobileReachData, 2 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Send Direct Message or Broadcast
   const sendInternalMessage = async (
@@ -1443,6 +1616,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getTeamStats,
         isUserBookedForBlitz,
         refreshData,
+        mobileReachStatus,
+        syncMobileReachNow,
+        fetchMobileReachData,
       }}
     >
       {children}

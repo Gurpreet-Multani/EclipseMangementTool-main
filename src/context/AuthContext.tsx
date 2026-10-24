@@ -122,7 +122,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [users, setUsers] = useState<UserProfile[]>(() => {
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed: UserProfile[] = JSON.parse(cached);
+        const map = new Map<string, UserProfile>();
+        INITIAL_USERS.forEach((u) => map.set(u.id, u));
+        parsed.forEach((u) => map.set(u.id, u));
+        return Array.from(map.values());
+      }
     } catch (e) {
       console.warn('Failed to parse cached users', e);
     }
@@ -154,17 +160,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [simulatedRole, setSimulatedRole] = useState<UserRole | null>(null);
 
   const [credentialMap, setCredentialMap] = useState<Record<string, string>>(() => {
-    try {
-      const cached = localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY);
-      if (cached) return JSON.parse(cached);
-    } catch (e) {
-      console.warn('Failed to parse cached credentials', e);
-    }
-
     const defaults: Record<string, string> = {};
     INITIAL_USERS.forEach((u) => {
       defaults[u.email.toLowerCase()] = 'eclipse123';
     });
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY);
+      if (cached) return { ...defaults, ...JSON.parse(cached) };
+    } catch (e) {
+      console.warn('Failed to parse cached credentials', e);
+    }
     return defaults;
   });
 

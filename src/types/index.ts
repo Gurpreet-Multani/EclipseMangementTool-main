@@ -428,3 +428,44 @@ export interface InternalMessage {
   createdAt: string;
   readBy: string[];
 }
+
+export interface MobileReachLeaderboardEntry {
+  user_id: string;
+  full_name: string;
+  sales: number;
+  installs: number;
+  rank?: number;
+  carrier_breakdown?: Record<string, number>;
+}
+
+export interface MobileReachSyncStatus {
+  isSyncing: boolean;
+  lastSyncTime: string | null;
+  nextSyncTime: string | null;
+  syncIntervalHours: number;
+  totalDeals: number;
+  statusBreakdown: {
+    installed: number;
+    scheduled: number;
+    jeopardy: number;
+    cancelled: number;
+    other: number;
+  };
+  carrierBreakdown: {
+    sparklight: number;
+    tmobile: number;
+    other: number;
+  };
+  lastError: string | null;
+  leaderboard: {
+    month: MobileReachLeaderboardEntry[];
+    week: MobileReachLeaderboardEntry[];
+    all: MobileReachLeaderboardEntry[];
+  };
+  authenticatedUser: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: string;
+  } | null;
+}

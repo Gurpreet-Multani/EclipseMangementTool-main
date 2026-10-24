@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initMobileReachScheduler, runMobileReachSync, getMobileReachSyncState } from './src/server/mobileReachSync.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -239,6 +240,48 @@ If a specific field is not found in the screenshot, return an empty string or nu
     }
   });
 
+  // --- MobileReach 24/7 D2D Automated Sync Endpoints ---
+  app.get('/api/mobilereach/status', (_req, res) => {
+    const state = getMobileReachSyncState();
+    res.json({
+      success: true,
+      ...state,
+    });
+  });
+
+  app.get('/api/mobilereach/data', (_req, res) => {
+    const state = getMobileReachSyncState();
+    res.json({
+      success: true,
+      orders: state.syncedOrders,
+      leaderboard: state.leaderboard,
+      statusBreakdown: state.statusBreakdown,
+      carrierBreakdown: state.carrierBreakdown,
+      lastSyncTime: state.lastSyncTime,
+      nextSyncTime: state.nextSyncTime,
+      totalDeals: state.totalDeals,
+      authenticatedUser: state.authenticatedUser,
+    });
+  });
+
+  app.post('/api/mobilereach/sync', async (req, res) => {
+    try {
+      const { email, password } = req.body || {};
+      const updatedState = await runMobileReachSync(email, password);
+      res.json({
+        success: true,
+        message: `Successfully synchronized ${updatedState.totalDeals} deals and real leaderboard from d2d.mobilereach.store`,
+        ...updatedState,
+      });
+    } catch (err: any) {
+      console.error('[MobileReach API] Sync error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'MobileReach sync failed. Please verify connection to d2d.mobilereach.store.',
+      });
+    }
+  });
+
   // Serve static files or Vite dev server
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
@@ -255,6 +298,8 @@ If a specific field is not found in the screenshot, return an empty string or nu
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Eclipse Dashboard server running at http://0.0.0.0:${PORT}`);
+    // Start automated 24/7 sync scheduler with MobileReach
+    initMobileReachScheduler();
   });
 }
 

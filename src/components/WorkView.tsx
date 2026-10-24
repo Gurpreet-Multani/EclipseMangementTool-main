@@ -35,6 +35,7 @@ import {
   FileImage,
   Eye,
   Smartphone,
+  Trophy,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -52,6 +53,8 @@ import { US_STATES } from '../lib/states';
 import { WorkExportModal } from './WorkExportModal';
 import { downloadCsv } from '../lib/csvExport';
 import { CustomerSmsModal } from './CustomerSmsModal';
+import { MobileReachSyncBanner } from './MobileReachSyncBanner';
+import { MobileReachLeaderboardModal } from './MobileReachLeaderboardModal';
 
 interface WorkViewProps {
   onOpenNewSale: (mode?: 'manual' | 'scan') => void;
@@ -81,7 +84,13 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     actualIsAdmin,
     setSimulatedRole,
   } = useAuth();
-  const { sales, updateSaleStatus, triggerCustomerSmsBatchCheck } = useData();
+  const {
+    sales,
+    updateSaleStatus,
+    triggerCustomerSmsBatchCheck,
+    mobileReachStatus,
+    syncMobileReachNow,
+  } = useData();
 
   const today = new Date();
   const currentMonthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
@@ -92,6 +101,11 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
   // Chart Metric Filter: 'rates' | 'volume' | 'all'
   const [chartMetricView, setChartMetricView] = useState<'rates' | 'volume' | 'all'>('rates');
+
+  // Leaderboard Source: 'eclipse' or 'mobilereach'
+  const [leaderboardSource, setLeaderboardSource] = useState<'eclipse' | 'mobilereach'>('eclipse');
+  // MobileReach Leaderboard Modal visibility
+  const [showMobileReachLeaderboard, setShowMobileReachLeaderboard] = useState<boolean>(false);
 
   // Leaderboard scope: 'team' or 'company'
   const [leaderboardScope, setLeaderboardScope] = useState<'team' | 'company'>('company');
@@ -603,6 +617,13 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
         </div>
       </div>
 
+      {/* 24/7 MobileReach Cloud Automated Sync Pipeline Status Banner */}
+      <MobileReachSyncBanner
+        status={mobileReachStatus}
+        onSyncNow={syncMobileReachNow}
+        onOpenLeaderboard={() => setShowMobileReachLeaderboard(true)}
+      />
+
       {/* Role-Specific Mission Cards */}
       {isAdmin && (
         <div className="p-3.5 bg-gradient-to-r from-slate-900/90 via-indigo-950/40 to-slate-900/90 border border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
@@ -1030,54 +1051,91 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
             {isPanelVisible('leaderboard') && (
               <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Award className="w-5 h-5 text-amber-400" />
                     <h2 className="text-lg font-black text-white">Fiber Blitz Leaderboard</h2>
+                    <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-800 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => setLeaderboardSource('eclipse')}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          leaderboardSource === 'eclipse'
+                            ? 'bg-slate-800 text-emerald-300 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Agency Roster
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLeaderboardSource('mobilereach')}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                          leaderboardSource === 'mobilereach'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-black shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        MobileReach Live
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Live rankings based on verified installs and sales production
+                  <p className="text-xs text-slate-400">
+                    {leaderboardSource === 'mobilereach'
+                      ? 'Live real-time rankings synchronized 24/7 directly from d2d.mobilereach.store'
+                      : 'Live rankings based on verified installs and sales production'}
                   </p>
                 </div>
 
                 {/* Scope + Timeframe Controls */}
                 <div className="space-y-2 self-start sm:self-auto">
-                  <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start">
+                  {leaderboardSource === 'eclipse' ? (
+                    <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start">
+                      <button
+                        onClick={() => setLeaderboardScope('company')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          leaderboardScope === 'company'
+                            ? 'bg-slate-800 text-emerald-300 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Company-Wide
+                      </button>
+                      <button
+                        onClick={() => setLeaderboardScope('team')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          leaderboardScope === 'team'
+                            ? 'bg-slate-800 text-emerald-300 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        My Squad / Upline
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => setLeaderboardScope('company')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        leaderboardScope === 'company'
-                          ? 'bg-slate-800 text-emerald-300 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
+                      type="button"
+                      onClick={() => setShowMobileReachLeaderboard(true)}
+                      className="px-3 py-1 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start"
                     >
-                      Company-Wide
+                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Open Full Leaderboard</span>
                     </button>
-                    <button
-                      onClick={() => setLeaderboardScope('team')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        leaderboardScope === 'team'
-                          ? 'bg-slate-800 text-emerald-300 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      My Squad / Upline
-                    </button>
-                  </div>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-1.5">
                     {[
                       { key: 'month', label: 'Month' },
                       { key: 'week', label: 'Week' },
-                      { key: 'day', label: 'Day' },
-                      { key: 'custom', label: 'Custom' },
-                      { key: 'lifetime', label: 'Lifetime Sales' },
+                      ...(leaderboardSource === 'eclipse' ? [{ key: 'day', label: 'Day' }, { key: 'custom', label: 'Custom' }] : []),
+                      { key: 'lifetime', label: leaderboardSource === 'mobilereach' ? 'All-Time' : 'Lifetime Sales' },
                     ].map((option) => (
                       <button
                         key={option.key}
                         type="button"
                         onClick={() => setLeaderboardTimeframe(option.key as 'month' | 'week' | 'day' | 'custom' | 'lifetime')}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                           leaderboardTimeframe === option.key
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
@@ -1088,7 +1146,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                     ))}
                   </div>
 
-                  {leaderboardTimeframe === 'custom' && (
+                  {leaderboardSource === 'eclipse' && leaderboardTimeframe === 'custom' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
                         type="date"
@@ -1107,8 +1165,120 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                 </div>
               </div>
 
-              {/* Top 3 Podium Cards */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
+              {leaderboardSource === 'mobilereach' ? (
+                /* MobileReach Live Portal Rankings */
+                <div className="space-y-4 pt-2">
+                  {(() => {
+                    const mrKey = leaderboardTimeframe === 'week' ? 'week' : leaderboardTimeframe === 'month' ? 'month' : 'all';
+                    const mrList = mobileReachStatus?.leaderboard?.[mrKey] || [];
+                    const top3Mr = mrList.slice(0, 3);
+                    const isYou = (name: string) => name.toLowerCase().includes('gurpreet') || name.toLowerCase().includes('multani');
+
+                    return (
+                      <>
+                        {/* Top 3 Podium for MobileReach */}
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                          {top3Mr.map((item, idx) => {
+                            const medals = ['🥇', '🥈', '🥉'];
+                            const borderGradients = [
+                              'border-amber-400/50 bg-gradient-to-b from-amber-500/10 to-slate-900',
+                              'border-slate-400/50 bg-gradient-to-b from-slate-400/10 to-slate-900',
+                              'border-amber-700/50 bg-gradient-to-b from-amber-700/10 to-slate-900',
+                            ];
+                            const you = isYou(item.full_name);
+
+                            return (
+                              <div
+                                key={item.user_id || idx}
+                                className={`p-3 sm:p-4 rounded-2xl border text-center relative flex flex-col items-center ${borderGradients[idx]}`}
+                              >
+                                <div className="text-xl sm:text-2xl mb-1">{medals[idx]}</div>
+                                <span className="text-[10px] font-mono text-slate-400">Rank #{idx + 1}</span>
+                                <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-full flex items-center gap-1 mt-1">
+                                  {item.full_name}
+                                  {you && (
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500 text-slate-950 font-black">
+                                      YOU
+                                    </span>
+                                  )}
+                                </h4>
+                                <div className="mt-2 text-center">
+                                  <span className="text-base sm:text-lg font-black text-emerald-400">
+                                    {item.installs}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block font-medium">Installs ({item.sales} deals)</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Full MobileReach Table */}
+                        <div className="overflow-x-auto max-h-96">
+                          <table className="w-full text-left text-xs text-slate-300">
+                            <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800 sticky top-0">
+                              <tr>
+                                <th className="py-2.5 px-3">Rank</th>
+                                <th className="py-2.5 px-3">Sales Specialist</th>
+                                <th className="py-2.5 px-3 text-center">Total Deals</th>
+                                <th className="py-2.5 px-3 text-center">Verified Installs</th>
+                                <th className="py-2.5 px-3 text-right">Install Rate</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60">
+                              {mrList.map((row, index) => {
+                                const you = isYou(row.full_name);
+                                const rate = row.sales > 0 ? Math.round((row.installs / row.sales) * 100) : 0;
+                                return (
+                                  <tr
+                                    key={row.user_id || index}
+                                    className={`hover:bg-slate-800/40 transition-colors ${
+                                      you ? 'bg-emerald-950/40 font-semibold border-l-2 border-emerald-500' : ''
+                                    }`}
+                                  >
+                                    <td className="py-2.5 px-3 font-mono font-bold">
+                                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-white font-medium">{row.full_name}</span>
+                                        {you && (
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500 text-slate-950 font-black">
+                                            YOU
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center font-bold text-slate-200">
+                                      {row.sales}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center font-black text-emerald-400 text-sm">
+                                      {row.installs}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          rate >= 60 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                                        }`}
+                                      >
+                                        {rate}%
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Agency Roster Leaderboard */
+                <>
+                {/* Top 3 Podium Cards */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
                 {leaderboardData.slice(0, 3).map((item, idx) => {
                   const medals = ['🥇', '🥈', '🥉'];
                   const borderGradients = [
@@ -1262,6 +1432,8 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   </tbody>
                 </table>
               </div>
+              </>
+              )}
             </div>
             )}
 
@@ -1475,6 +1647,8 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                 >
                   <option value="all">All Carrier Programs</option>
+                  <option value="Sparklight Fiber">Sparklight Fiber</option>
+                  <option value="T-Mobile Fiber">T-Mobile Fiber</option>
                   <option value="AT&T Fiber">AT&T Fiber</option>
                   <option value="Frontier Fiber">Frontier Fiber</option>
                   <option value="Quantum Fiber">Quantum Fiber</option>
@@ -1849,6 +2023,14 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
           </div>
         </div>
       )}
+
+      {/* MobileReach Live Portal Leaderboard Modal */}
+      <MobileReachLeaderboardModal
+        isOpen={showMobileReachLeaderboard}
+        onClose={() => setShowMobileReachLeaderboard(false)}
+        syncStatus={mobileReachStatus}
+        currentUserEmail={currentUser?.email}
+      />
     </div>
   );
 };
