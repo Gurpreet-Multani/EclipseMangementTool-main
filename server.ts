@@ -581,11 +581,14 @@ If a specific field is not found in the screenshot, return an empty string or nu
   });
 
   // Serve static files or Vite dev server
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.use('/EclipseMangementTool-main', express.static(path.resolve(__dirname, 'dist')));
+  const distPath = path.resolve(__dirname, 'dist');
+  const isProduction = process.env.NODE_ENV === 'production' || (!process.env.NODE_ENV && fs.existsSync(path.join(distPath, 'index.html')) && !process.env.npm_lifecycle_event?.includes('dev'));
+
+  if (isProduction && fs.existsSync(path.join(distPath, 'index.html'))) {
+    app.use(express.static(distPath));
+    app.use('/EclipseMangementTool-main', express.static(distPath));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
     const vite = await createViteServer({
