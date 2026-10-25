@@ -4,7 +4,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initMobileReachScheduler, runMobileReachSync, getMobileReachSyncState } from './src/server/mobileReachSync.ts';
+import { initMobileReachScheduler, runMobileReachSync, getMobileReachSyncState, handleMobileReachWebhook } from './src/server/mobileReachSync.ts';
+import { getChatMessages, handleIncomingGroupChatMessage, reconcileChatSalesWithFiberVolt } from './src/server/smsGroupChat.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -504,6 +505,78 @@ If a specific field is not found in the screenshot, return an empty string or nu
         success: false,
         error: err.message || 'MobileReach sync failed. Please verify connection to d2d.mobilereach.store.',
       });
+    }
+  });
+
+  // Real-time 24/7 Webhook endpoints for Fiber Volt / MobileReach
+  const handleIncomingWebhook = async (req: express.Request, res: express.Response) => {
+    try {
+      const result = await handleMobileReachWebhook(req.body);
+      res.json({
+        ...result,
+        message: `Instantly received and synchronized ${result.count} orders directly to website & Cloud Firestore`,
+      });
+    } catch (err: any) {
+      console.error('[Webhook Error]:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to process incoming webhook order.' });
+    }
+  };
+
+  app.post('/api/mobilereach/webhook', handleIncomingWebhook);
+  app.post('/api/fibervolt/webhook', handleIncomingWebhook);
+
+  // --- SMS Groupchat AI Image Order Ingestion & Overtime Fiber Volt Sync ---
+  app.get('/api/sms-chat/messages', (_req, res) => {
+    try {
+      const messages = getChatMessages();
+      res.json({ success: true, messages });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/sms-chat/send', async (req, res) => {
+    try {
+      const result = await handleIncomingGroupChatMessage(req.body);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (err: any) {
+      console.error('[SMS Chat Ingest Error]:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to process chat message' });
+    }
+  });
+
+  // Carrier / Twilio MMS Webhook for real incoming group texts
+  app.post('/api/sms-chat/inbound-mms', async (req, res) => {
+    try {
+      const from = req.body?.From || req.body?.senderPhone || '';
+      const bodyText = req.body?.Body || req.body?.text || '';
+      const mediaUrl = req.body?.MediaUrl0 || req.body?.imageUrl || '';
+      const senderName = req.body?.senderName || from || 'Field Representative';
+
+      await handleIncomingGroupChatMessage({
+        senderName,
+        senderPhone: from,
+        text: bodyText,
+        imageUrl: mediaUrl,
+      });
+
+      res.type('text/xml').send('<Response></Response>');
+    } catch (err: any) {
+      console.error('[Inbound MMS Webhook Error]:', err);
+      res.status(500).send('<Response></Response>');
+    }
+  });
+
+  // Manual or client trigger for overtime reconciliation
+  app.post('/api/sms-chat/reconcile', async (_req, res) => {
+    try {
+      const result = await reconcileChatSalesWithFiberVolt();
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 

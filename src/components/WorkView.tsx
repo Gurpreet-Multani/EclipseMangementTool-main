@@ -56,6 +56,7 @@ import { downloadCsv } from '../lib/csvExport';
 import { CustomerSmsModal } from './CustomerSmsModal';
 import { MobileReachSyncBanner } from './MobileReachSyncBanner';
 import { MobileReachLeaderboardModal } from './MobileReachLeaderboardModal';
+import { SmsGroupChatModal } from './SmsGroupChatModal';
 
 interface WorkViewProps {
   onOpenNewSale: (mode?: 'manual' | 'scan') => void;
@@ -137,6 +138,9 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
   const [smsSelectedOrder, setSmsSelectedOrder] = useState<SaleOrder | null>(null);
   const [smsBatchRunning, setSmsBatchRunning] = useState<boolean>(false);
   const [smsBatchResult, setSmsBatchResult] = useState<string | null>(null);
+
+  // SMS Groupchat Order Ingestion & Fiber Volt Sync Modal state
+  const [showSmsGroupChat, setShowSmsGroupChat] = useState<boolean>(false);
 
   const fieldFocusSnapshot = useMemo(() => {
     const now = new Date();
@@ -605,20 +609,44 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
     return sales.filter((order) => {
       // Rep filter
       if (filterRepId === 'me') {
-        if (order.repId !== currentUser?.id) return false;
+        const matchesId = order.repId === currentUser?.id;
+        const matchesName = (order.repName || '').toLowerCase() === (currentUser?.displayName || '').toLowerCase();
+        if (!matchesId && !matchesName) return false;
       } else if (filterRepId === 'my_team') {
         // Show reps under me if manager or admin
         if (isManager || isAdmin) {
-          const rep = allUsers.find((u) => u.id === order.repId);
+          const rep = allUsers.find((u) => u.id === order.repId || (u.displayName || '').toLowerCase() === (order.repName || '').toLowerCase());
           if (rep?.managerId !== currentUser?.id && order.repId !== currentUser?.id) return false;
         } else {
           // If representative, show colleagues under same manager
           const myManagerId = currentUser?.managerId;
-          const rep = allUsers.find((u) => u.id === order.repId);
+          const rep = allUsers.find((u) => u.id === order.repId || (u.displayName || '').toLowerCase() === (order.repName || '').toLowerCase());
           if (rep?.managerId !== myManagerId && order.repId !== currentUser?.id) return false;
         }
       } else if (filterRepId !== 'all') {
-        if (order.repId !== filterRepId) return false;
+        const targetUser = allUsers.find((u) => u.id === filterRepId);
+        const matchesId = order.repId === filterRepId;
+        const targetNameLower = (targetUser?.displayName || '').toLowerCase();
+        const repNameLower = (order.repName || '').toLowerCase();
+        const orderRepIdLower = (order.repId || '').toLowerCase();
+
+        const matchesName = targetUser && (
+          repNameLower === targetNameLower ||
+          (targetUser.firstName && targetUser.lastName &&
+           repNameLower.includes(targetUser.firstName.toLowerCase()) &&
+           repNameLower.includes(targetUser.lastName.toLowerCase()))
+        );
+
+        const isAriaFilter = filterRepId.includes('aria') || targetNameLower.includes('aria');
+        const matchesAria = isAriaFilter && (orderRepIdLower.includes('aria') || repNameLower.includes('aria'));
+
+        const isDwayneFilter = filterRepId.includes('dwayne') || targetNameLower.includes('dwayne');
+        const matchesDwayne = isDwayneFilter && (orderRepIdLower.includes('dwayne') || repNameLower.includes('dwayne'));
+
+        const isIsaacFilter = filterRepId.includes('isaac') || targetNameLower.includes('isaac');
+        const matchesIsaac = isIsaacFilter && (orderRepIdLower.includes('isaac') || repNameLower.includes('isaac'));
+
+        if (!matchesId && !matchesName && !matchesAria && !matchesDwayne && !matchesIsaac) return false;
       }
 
       // ISP Filter
@@ -632,13 +660,18 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
 
       // Search Query
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         const matches =
           (order.customerName || '').toLowerCase().includes(q) ||
           (order.orderNumber || '').toLowerCase().includes(q) ||
           (order.address || '').toLowerCase().includes(q) ||
           (order.repName || '').toLowerCase().includes(q) ||
-          (order.city || '').toLowerCase().includes(q);
+          (order.city || '').toLowerCase().includes(q) ||
+          (order.state || '').toLowerCase().includes(q) ||
+          (order.ispProgram || '').toLowerCase().includes(q) ||
+          (order.status || '').toLowerCase().includes(q) ||
+          (order.notes || '').toLowerCase().includes(q) ||
+          (order.detectedCrm || '').toLowerCase().includes(q);
         if (!matches) return false;
       }
 
@@ -771,6 +804,7 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
         status={mobileReachStatus}
         onSyncNow={syncMobileReachNow}
         onOpenLeaderboard={() => setShowMobileReachLeaderboard(true)}
+        onOpenSmsChat={() => setShowSmsGroupChat(true)}
       />
 
       {/* Role-Specific Mission Cards */}
@@ -1897,6 +1931,17 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                   </button>
 
                   <button
+                    type="button"
+                    onClick={() => setShowSmsGroupChat(true)}
+                    className="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md border bg-gradient-to-r from-blue-950/80 to-slate-900 hover:from-blue-900/80 text-cyan-300 border-cyan-500/40 shadow-cyan-500/10 cursor-pointer transition-all"
+                    title="Open SMS Groupchat feed where order summaries dropped in chat are automatically scanned and synced with Fiber Volt"
+                  >
+                    <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>💬 SMS Order Feed</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  </button>
+
+                  <button
                     onClick={isButtonDisabled('log_sale') ? undefined : () => onOpenNewSale('scan')}
                     disabled={isButtonDisabled('log_sale')}
                     className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md border transition-all ${
@@ -2070,6 +2115,17 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
                           >
                             {order.customerName}
                           </button>
+
+                          {order.sourceChannel === 'sms_groupchat' && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-blue-500/20 text-cyan-300 border border-cyan-500/40 inline-flex items-center gap-1">
+                              <Smartphone className="w-2.5 h-2.5" /> SMS Chat Ingested
+                            </span>
+                          )}
+                          {order.fiberVoltMatched && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 inline-flex items-center gap-1">
+                              <Zap className="w-2.5 h-2.5" /> Fiber Volt Synced
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-[11px] text-slate-400 font-medium truncate">
@@ -2353,6 +2409,18 @@ export const WorkView: React.FC<WorkViewProps> = ({ onOpenNewSale, onOpenDirectM
         syncStatus={mobileReachStatus}
         currentUserEmail={currentUser?.email}
       />
+
+      {/* Live SMS Groupchat & Inbound Order Vision Ingestion Modal */}
+      {showSmsGroupChat && (
+        <SmsGroupChatModal
+          onClose={() => setShowSmsGroupChat(false)}
+          onNavigateToSale={(saleId) => {
+            setSearchQuery(saleId);
+            setShowSmsGroupChat(false);
+            setSubTab('sales');
+          }}
+        />
+      )}
     </div>
   );
 };

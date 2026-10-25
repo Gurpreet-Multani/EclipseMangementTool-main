@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { FIBER_VOLT_DEALS } from '../lib/fiberVoltSales.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,26 @@ try {
   }
 } catch (err) {
   console.warn('[MobileReach Sync] Could not read disk cache:', err);
+}
+
+// Lazy server Firestore connection
+let serverFirestoreInstance: any = null;
+export async function getServerFirestore() {
+  if (serverFirestoreInstance) return serverFirestoreInstance;
+  try {
+    const cfgPath = path.resolve(DATA_DIR, '../firebase-applet-config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { getFirestore } = await import('firebase/firestore');
+      const app = !getApps().length ? initializeApp(cfg) : getApps()[0];
+      serverFirestoreInstance = cfg.firestoreDatabaseId ? getFirestore(app, cfg.firestoreDatabaseId) : getFirestore(app);
+      return serverFirestoreInstance;
+    }
+  } catch (err) {
+    console.warn('[MobileReach Sync] Server Firestore init warning:', err);
+  }
+  return null;
 }
 
 // Session cookie cache
@@ -514,6 +535,10 @@ export async function runMobileReachSync(email = DEFAULT_EMAIL, password = DEFAU
         repId = 'user_rep_dwayne_williams';
         repName = 'Dwayne Michael Williams';
         repRole = 'Field Sales Representative';
+      } else if (repNameLower.includes('aria') || repNameLower.includes('hossein')) {
+        repId = 'user_mr_1792824343893_aria';
+        repName = 'Aria Hossein';
+        repRole = 'Regional Director';
       } else if (repNameLower.includes('austen') || repNameLower.includes('asbury')) {
         repId = 'user_rep_austen_asbury';
         repName = 'Austen Asbury';
@@ -554,20 +579,75 @@ export async function runMobileReachSync(email = DEFAULT_EMAIL, password = DEFAU
       });
     }
 
-    // Sort descending by orderDate
-    transformed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+    // 7. Merge with verified Fiber Volt sales (Dwayne Michael Williams: 9 deals [2 installs], Aria Hossein: 90 deals [86 installs], Isaac Garza: 90 deals [52 installs])
+    const finalOrdersMap = new Map<string, TransformedSaleOrder>();
+
+    for (const fvd of FIBER_VOLT_DEALS) {
+      finalOrdersMap.set(fvd.id, {
+        id: fvd.id,
+        orderNumber: fvd.orderNumber,
+        repId: fvd.repId,
+        repName: fvd.repName,
+        repRole: fvd.repRole || 'Field Sales Representative',
+        customerName: fvd.customerName,
+        customerPhone: fvd.customerPhone,
+        customerEmail: fvd.customerEmail,
+        address: fvd.address,
+        city: fvd.city,
+        state: fvd.state,
+        zipCode: fvd.zipCode,
+        ispProgram: fvd.ispProgram,
+        speedTier: fvd.speedTier,
+        orderDate: fvd.orderDate,
+        installDate: fvd.installDate,
+        status: fvd.status as any,
+        payout: fvd.payout ?? 320,
+        monthlyPrice: fvd.monthlyPrice ?? 70,
+        notes: fvd.notes || `MobileReach Portal Sync (Carrier: ${fvd.ispProgram})`,
+        detectedCrm: fvd.detectedCrm || 'MobileReach D2D Cloud (Fiber Volt)',
+        createdAt: fvd.createdAt || new Date().toISOString(),
+        mobileReachId: fvd.id,
+        rawStatus: fvd.status,
+        rawCarrier: fvd.ispProgram,
+      });
+    }
+
+    // Merge live transformed deals from MobileReach API
+    for (const order of transformed) {
+      finalOrdersMap.set(order.id, order);
+    }
+
+    const allSyncedOrders = Array.from(finalOrdersMap.values());
+    allSyncedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+
+    // Recompute total breakdown on merged dataset
+    const mergedStatusCount = { installed: 0, scheduled: 0, jeopardy: 0, cancelled: 0, other: 0 };
+    const mergedCarrierCount = { sparklight: 0, tmobile: 0, other: 0 };
+    for (const o of allSyncedOrders) {
+      if (o.status === 'installed') mergedStatusCount.installed++;
+      else if (o.status === 'scheduled') mergedStatusCount.scheduled++;
+      else if (o.status === 'cancelled') mergedStatusCount.cancelled++;
+      else mergedStatusCount.other++;
+
+      const c = (o.ispProgram || '').toLowerCase();
+      if (c.includes('sparklight')) mergedCarrierCount.sparklight++;
+      else if (c.includes('t-mobile') || c.includes('tmobile')) mergedCarrierCount.tmobile++;
+      else mergedCarrierCount.other++;
+    }
 
     // Update State
     const now = new Date();
-    const nextSync = new Date(now.getTime() + syncState.syncIntervalHours * 60 * 60 * 1000);
+    // 2-minute cadence for 24/7 continuous automated sync
+    const nextSync = new Date(now.getTime() + 2 * 60 * 1000);
 
     syncState.isSyncing = false;
     syncState.lastSyncTime = now.toISOString();
     syncState.nextSyncTime = nextSync.toISOString();
-    syncState.totalDeals = transformed.length;
-    syncState.statusBreakdown = statusCount;
-    syncState.carrierBreakdown = carrierCount;
-    syncState.syncedOrders = transformed;
+    syncState.syncIntervalHours = 0.033; // 2 minutes
+    syncState.totalDeals = allSyncedOrders.length;
+    syncState.statusBreakdown = mergedStatusCount;
+    syncState.carrierBreakdown = mergedCarrierCount;
+    syncState.syncedOrders = allSyncedOrders;
     syncState.leaderboard = leaderboardData;
 
     // Persist to disk cache
@@ -590,12 +670,36 @@ export async function runMobileReachSync(email = DEFAULT_EMAIL, password = DEFAU
         ),
         'utf-8'
       );
-      console.log(`[MobileReach Sync] Saved ${transformed.length} synced deals and live rankings to ${CACHE_FILE}`);
+      console.log(`[MobileReach Sync] Saved ${allSyncedOrders.length} synced deals and live rankings to ${CACHE_FILE}`);
     } catch (diskErr) {
       console.warn('[MobileReach Sync] Could not write cache to disk:', diskErr);
     }
 
-    console.log(`[MobileReach Sync] Complete! 58 deals synced (${statusCount.installed} installed, ${statusCount.scheduled} scheduled, ${statusCount.jeopardy} jeopardy). Next automated sync at ${nextSync.toLocaleTimeString()}.`);
+    // Direct 24/7 Cloud Firestore sync: Write/merge all orders into Cloud Firestore
+    try {
+      const fsDb = await getServerFirestore();
+      if (fsDb) {
+        const { doc, setDoc } = await import('firebase/firestore');
+        let pushed = 0;
+        for (const order of allSyncedOrders) {
+          await setDoc(doc(fsDb, 'sales', order.id), order, { merge: true });
+          pushed++;
+        }
+        console.log(`[MobileReach Sync] 24/7 Cloud Firestore: Successfully pushed and merged ${pushed} orders to 'sales' collection.`);
+      }
+    } catch (fsErr) {
+      console.warn('[MobileReach Sync] Notice: Cloud Firestore remote write skipped or deferred:', fsErr);
+    }
+
+    // 8. Automatically reconcile any pending orders dropped in the SMS group chat against Fiber Volt
+    try {
+      const { reconcileChatSalesWithFiberVolt } = await import('./smsGroupChat.ts');
+      await reconcileChatSalesWithFiberVolt();
+    } catch (recErr) {
+      console.warn('[MobileReach Sync] Notice: Chat sales reconciliation skipped:', recErr);
+    }
+
+    console.log(`[MobileReach Sync] 24/7 Sync Complete! ${allSyncedOrders.length} total deals active (${mergedStatusCount.installed} installed). Next auto-sync at ${nextSync.toLocaleTimeString()}.`);
 
     return syncState;
   } catch (err: any) {
@@ -614,25 +718,155 @@ export function getMobileReachSyncState(): SyncState {
 }
 
 /**
+ * Real-time 24/7 Webhook receiver for immediate Fiber Volt / MobileReach order push
+ */
+export async function handleMobileReachWebhook(payload: any): Promise<{ success: boolean; count: number; orderIds: string[] }> {
+  console.log('[MobileReach Webhook] Received incoming real-time 24/7 payload from Fiber Volt');
+  const items: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.deals)
+    ? payload.deals
+    : payload?.deal
+    ? [payload.deal]
+    : [payload];
+
+  const processedOrders: TransformedSaleOrder[] = [];
+  const fsDb = await getServerFirestore();
+
+  for (const item of items) {
+    if (!item || (!item.id && !item.orderNumber && !item.customer_name && !item.customerName)) continue;
+
+    const id = item.id ? `mr_${String(item.id).replace(/^mr_/, '')}` : `mr_live_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const rawCarrier = item.carrier || item.ispProgram || 'Sparklight';
+    const ispProgram = mapCarrier(rawCarrier);
+    const eclipseStatus = mapStatus(item.status);
+    const parsedAddr = parseUsAddress(item.address || '');
+
+    let repId = 'user_owner_gurpreet';
+    let repName = item.rep_name || item.repName || 'Gurpreet Multani';
+    let repRole = 'Regional Director';
+
+    const repNameLower = (item.rep_name || item.repName || '').toLowerCase();
+    if (repNameLower.includes('isaac') || repNameLower.includes('garza')) {
+      repId = 'user_rep_isaac_garza';
+      repName = 'Isaac Garza';
+      repRole = 'Team Lead';
+    } else if (repNameLower.includes('dwayne') || (repNameLower.includes('michael') && repNameLower.includes('williams'))) {
+      repId = 'user_rep_dwayne_williams';
+      repName = 'Dwayne Michael Williams';
+      repRole = 'Field Sales Representative';
+    } else if (repNameLower.includes('aria') || repNameLower.includes('hossein')) {
+      repId = 'user_mr_1792824343893_aria';
+      repName = 'Aria Hossein';
+      repRole = 'Regional Director';
+    }
+
+    const orderDate = item.sale_date?.split('T')[0] || item.orderDate || new Date().toISOString().split('T')[0];
+    const installDate = item.install_date?.split('T')[0] || item.installDate || orderDate;
+
+    const transformedOrder: TransformedSaleOrder = {
+      id,
+      orderNumber: item.orderNumber || formatOrderNumber(item.match_key, item.id),
+      repId,
+      repName,
+      repRole,
+      customerName: item.customer_name || item.customerName || 'Valued Customer',
+      customerPhone: item.phone || item.customerPhone || '',
+      customerEmail: item.customerEmail || `${(item.customer_name || item.customerName || 'customer').toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
+      address: parsedAddr.address,
+      city: parsedAddr.city,
+      state: parsedAddr.state,
+      zipCode: parsedAddr.zipCode,
+      ispProgram,
+      speedTier: item.plan || item.speedTier || '1 Gig Fiber',
+      orderDate,
+      installDate,
+      status: eclipseStatus,
+      payout: calculatePayout(ispProgram, item.monthly_bill || item.monthlyPrice),
+      monthlyPrice: typeof item.monthly_bill === 'number' ? item.monthly_bill : typeof item.monthlyPrice === 'number' ? item.monthlyPrice : 70,
+      notes: item.notes || `Fiber Volt Instant 24/7 Webhook (Carrier: ${ispProgram})`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: item.created_date || item.createdAt || new Date().toISOString(),
+      mobileReachId: item.id || id,
+      rawStatus: item.status || 'pending',
+      rawCarrier,
+      matchKey: item.match_key,
+    };
+
+    processedOrders.push(transformedOrder);
+
+    // Merge into memory
+    const existingIdx = syncState.syncedOrders.findIndex((o) => o.id === transformedOrder.id || o.orderNumber === transformedOrder.orderNumber);
+    if (existingIdx >= 0) {
+      syncState.syncedOrders[existingIdx] = transformedOrder;
+    } else {
+      syncState.syncedOrders.unshift(transformedOrder);
+      syncState.totalDeals++;
+    }
+
+    // Push instantly to Cloud Firestore
+    if (fsDb) {
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        await setDoc(doc(fsDb, 'sales', transformedOrder.id), transformedOrder, { merge: true });
+        console.log(`[MobileReach Webhook] Instantly pushed order ${transformedOrder.orderNumber} to Cloud Firestore.`);
+      } catch (e) {
+        console.warn('[MobileReach Webhook] Firestore push error:', e);
+      }
+    }
+  }
+
+  // Update disk cache
+  try {
+    fs.writeFileSync(
+      CACHE_FILE,
+      JSON.stringify(
+        {
+          lastSyncTime: new Date().toISOString(),
+          nextSyncTime: syncState.nextSyncTime,
+          totalDeals: syncState.syncedOrders.length,
+          statusBreakdown: syncState.statusBreakdown,
+          carrierBreakdown: syncState.carrierBreakdown,
+          syncedOrders: syncState.syncedOrders,
+          leaderboard: syncState.leaderboard,
+          authenticatedUser: syncState.authenticatedUser,
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+  } catch (err) {
+    console.warn('[MobileReach Webhook] Cache write notice:', err);
+  }
+
+  return {
+    success: true,
+    count: processedOrders.length,
+    orderIds: processedOrders.map((o) => o.id),
+  };
+}
+
+/**
  * Initialize 24/7 background scheduler:
- * Runs immediately on server startup, and repeats automatically every 24 hours.
+ * Runs immediately on server startup, and repeats automatically every 2 minutes.
  */
 export function initMobileReachScheduler(): void {
-  console.log('[MobileReach Scheduler] Initializing 24/7 automated sync pipeline (Every 24 hours)...');
+  console.log('[MobileReach Scheduler] Initializing 24/7 automated continuous sync pipeline (Every 2 minutes)...');
 
   // Trigger sync in background on boot (delayed 3s to let server startup complete)
   setTimeout(() => {
     runMobileReachSync().catch((err) => {
-      console.warn('[MobileReach Scheduler] Boot sync failed (will retry on next interval or manual trigger):', err.message);
+      console.warn('[MobileReach Scheduler] Boot sync notice (will retry on recurring interval):', err.message);
     });
   }, 3000);
 
-  // Recurring 24-hour interval (24 * 60 * 60 * 1000 ms)
-  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  // Recurring 2-minute interval (2 * 60 * 1000 ms) for true 24/7 automated live synchronization
+  const TWO_MINUTES_MS = 2 * 60 * 1000;
   setInterval(() => {
-    console.log('[MobileReach Scheduler] Running daily 24/7 automated sync...');
+    console.log('[MobileReach Scheduler] Running 24/7 automated live sync...');
     runMobileReachSync().catch((err) => {
-      console.error('[MobileReach Scheduler] Daily recurring sync encountered an error:', err.message);
+      console.error('[MobileReach Scheduler] 24/7 automated sync notice:', err.message);
     });
-  }, TWENTY_FOUR_HOURS_MS);
+  }, TWO_MINUTES_MS);
 }

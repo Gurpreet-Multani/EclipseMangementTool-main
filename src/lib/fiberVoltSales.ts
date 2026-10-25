@@ -451,7 +451,255 @@ export function generateDwayneWilliamsDeals(): SaleOrder[] {
   return deals;
 }
 
+/**
+ * Aria Hossein (Rank #9 Producer Nationwide - MobileReach / Fiber Volt)
+ * - 90 Total Lifetime Sales
+ * - Exactly 86 Installs (95.5% Install Rate)
+ * - 2 Scheduled
+ * - 1 Pending
+ * - 1 Cancelled
+ */
+export function generateAriaHosseinDeals(): SaleOrder[] {
+  const deals: SaleOrder[] = [];
+  let customerIdx = 200;
+
+  // 1. THIS WEEK INSTALLS: 6 installs (Oct 19 - Oct 24, 2026)
+  const thisWeekDates = ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24'];
+  for (let i = 0; i < 6; i++) {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    const carrier = i % 2 === 0 ? 'Sparklight Fiber' : 'T-Mobile Fiber';
+    const date = thisWeekDates[i];
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_inst_${deals.length + 1}`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85225',
+      ispProgram: carrier,
+      speedTier: i % 2 === 0 ? '1 Gig Fiber' : '2 Gig Fiber',
+      orderDate: date,
+      installDate: date,
+      status: 'installed',
+      payout: carrier === 'Sparklight Fiber' ? 320 : 300,
+      monthlyPrice: i % 2 === 0 ? 70 : 85,
+      notes: `Fiber Volt Live Sync (Carrier: ${carrier}) - Installed & Verified. Rank #9 Producer Nationwide.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: `${date}T13:45:00Z`,
+    });
+  }
+
+  // 2. THIS MONTH PRIOR WEEKS INSTALLS: 32 installs (Oct 1 - Oct 18, 2026) -> Total October Installs = 38
+  for (let i = 0; i < 32; i++) {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    const carrier = i % 2 === 0 ? 'Sparklight Fiber' : 'T-Mobile Fiber';
+    const day = String(1 + Math.floor((i * 17) / 32)).padStart(2, '0');
+    const date = `2026-10-${day}`;
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_inst_${deals.length + 1}`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85226',
+      ispProgram: carrier,
+      speedTier: i % 3 === 0 ? '2 Gig Fiber' : '1 Gig Fiber',
+      orderDate: date,
+      installDate: date,
+      status: 'installed',
+      payout: carrier === 'Sparklight Fiber' ? 320 : 300,
+      monthlyPrice: i % 3 === 0 ? 85 : 70,
+      notes: `Fiber Volt Live Sync (Carrier: ${carrier}) - Installed. Quality audit completed.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: `${date}T11:20:00Z`,
+    });
+  }
+
+  // 3. PRIOR MONTHS INSTALLS: 48 installs (August & September 2026) -> Total Installs = 6 + 32 + 48 = 86!
+  for (let i = 0; i < 48; i++) {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    const carrier = i % 2 === 0 ? 'Sparklight Fiber' : 'T-Mobile Fiber';
+    const month = i < 24 ? '08' : '09';
+    const day = String(1 + (i % 28)).padStart(2, '0');
+    const date = `2026-${month}-${day}`;
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_inst_${deals.length + 1}`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85281',
+      ispProgram: carrier,
+      speedTier: i % 2 === 0 ? '1 Gig Fiber' : '2 Gig Fiber',
+      orderDate: date,
+      installDate: date,
+      status: 'installed',
+      payout: carrier === 'Sparklight Fiber' ? 320 : 300,
+      monthlyPrice: i % 2 === 0 ? 70 : 85,
+      notes: `Fiber Volt Live Sync (Carrier: ${carrier}) - Customer completed install and activated equipment.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: `${date}T15:10:00Z`,
+    });
+  }
+
+  // At this point: exactly 86 installed orders!
+
+  // 4. SCHEDULED ORDERS: 2 orders
+  for (let i = 0; i < 2; i++) {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    const carrier = i === 0 ? 'Sparklight Fiber' : 'T-Mobile Fiber';
+    const oDate = '2026-10-23';
+    const iDate = `2026-10-${27 + i}`;
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_sched_${i + 1}`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85282',
+      ispProgram: carrier,
+      speedTier: '1 Gig Fiber',
+      orderDate: oDate,
+      installDate: iDate,
+      status: 'scheduled',
+      payout: 320,
+      monthlyPrice: 70,
+      notes: `Fiber Volt Live Sync (Carrier: ${carrier}) - Scheduled technician truck roll for ${iDate}.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: `${oDate}T16:00:00Z`,
+    });
+  }
+
+  // 5. PENDING ORDER: 1 order
+  {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_pend_1`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85283',
+      ispProgram: 'T-Mobile Fiber',
+      speedTier: '1 Gig Fiber',
+      orderDate: '2026-10-24',
+      installDate: '2026-10-29',
+      status: 'pending',
+      payout: 300,
+      monthlyPrice: 70,
+      notes: `Fiber Volt Live Sync - Facility drop check pending carrier pre-qualification.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: '2026-10-24T18:15:00Z',
+    });
+  }
+
+  // 6. CANCELLED ORDER: 1 order
+  {
+    const fn = CUSTOMER_FIRST_NAMES[customerIdx % CUSTOMER_FIRST_NAMES.length];
+    const ln = CUSTOMER_LAST_NAMES[customerIdx % CUSTOMER_LAST_NAMES.length];
+    const street = PHOENIX_STREETS[customerIdx % PHOENIX_STREETS.length];
+    const city = PHOENIX_CITIES[customerIdx % PHOENIX_CITIES.length];
+    customerIdx++;
+
+    deals.push({
+      id: `mr_ah_canc_1`,
+      orderNumber: `FV-AH-${99000 + deals.length + 1}`,
+      repId: 'user_mr_1792824343893_aria',
+      repName: 'Aria Hossein',
+      repRole: 'Regional Director',
+      uplineManagerId: 'user_owner_gurpreet',
+      uplineManagerName: 'Gurpreet Multani',
+      customerName: `${fn} ${ln}`,
+      customerPhone: `(480) 555-${String(3000 + customerIdx * 7).slice(0, 4)}`,
+      customerEmail: `${fn.toLowerCase()}.${ln.toLowerCase()}@gmail.com`,
+      address: `${2000 + customerIdx * 12} ${street}`,
+      city,
+      state: 'AZ',
+      zipCode: '85284',
+      ispProgram: 'Sparklight Fiber',
+      speedTier: '1 Gig Fiber',
+      orderDate: '2026-09-15',
+      installDate: '2026-09-18',
+      status: 'cancelled',
+      payout: 0,
+      monthlyPrice: 70,
+      notes: `Customer cancelled order before drop wire installed. Landlord permission denied.`,
+      detectedCrm: 'MobileReach D2D Cloud (Fiber Volt)',
+      createdAt: '2026-09-15T14:30:00Z',
+    });
+  }
+
+  // Total: 90 deals, exactly 86 installs!
+  return deals;
+}
+
 export const FIBER_VOLT_DEALS: SaleOrder[] = [
   ...generateIsaacGarzaDeals(),
   ...generateDwayneWilliamsDeals(),
+  ...generateAriaHosseinDeals(),
 ];

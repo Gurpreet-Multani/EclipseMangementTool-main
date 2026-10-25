@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { MobileReachSyncStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, ExternalLink, Trophy, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Zap } from 'lucide-react';
+import { RefreshCw, ExternalLink, Trophy, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Zap, Smartphone } from 'lucide-react';
 
 interface MobileReachSyncBannerProps {
   status: MobileReachSyncStatus | null;
   onSyncNow: () => Promise<{ success: boolean; count: number; message: string }>;
   onOpenLeaderboard: () => void;
+  onOpenSmsChat?: () => void;
 }
 
 export const MobileReachSyncBanner: React.FC<MobileReachSyncBannerProps> = ({
   status,
   onSyncNow,
   onOpenLeaderboard,
+  onOpenSmsChat,
 }) => {
   const { currentUser } = useAuth();
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -89,7 +91,7 @@ export const MobileReachSyncBanner: React.FC<MobileReachSyncBannerProps> = ({
 
           <div className="text-[11px] text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
-              Auto-updating <strong className="text-emerald-400">once a day (24/7)</strong> with live deals, statuses & leaderboard.
+              Auto-updating <strong className="text-emerald-400">continuously 24/7 (every 2 mins + instant webhooks)</strong> with all live Fiber Volt orders, statuses & leaderboard.
             </span>
             <span className="text-slate-500">•</span>
             <span className="text-slate-400 flex items-center gap-1">
@@ -135,6 +137,19 @@ export const MobileReachSyncBanner: React.FC<MobileReachSyncBannerProps> = ({
 
         {/* Right Section: Action Controls */}
         <div className="flex flex-wrap items-center gap-2 self-start lg:self-center shrink-0">
+          {onOpenSmsChat && (
+            <button
+              type="button"
+              onClick={onOpenSmsChat}
+              className="px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Open SMS Groupchat feed where dropped order summary images are scanned by Vision AI and synced to Fiber Volt"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              <span>SMS Order Stream</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenLeaderboard}

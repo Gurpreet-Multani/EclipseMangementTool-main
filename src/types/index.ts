@@ -216,6 +216,14 @@ export interface SaleOrder {
   detectedCrm?: string;
   monthlyPrice?: number;
   screenshotPreviewUrl?: string;
+  sourceChannel?: 'field_entry' | 'sms_groupchat' | 'fibervolt_sync' | 'carrier_ocr';
+  chatMessageId?: string;
+  chatSenderPhone?: string;
+  chatSenderName?: string;
+  isSaleVerified?: boolean;
+  fiberVoltMatched?: boolean;
+  fiberVoltMatchId?: string;
+  lastReconciledAt?: string;
   customerSmsConfig?: CustomerSmsConfig;
   smsMessages?: CustomerSmsMessage[];
   createdAt: string;
@@ -474,4 +482,34 @@ export interface MobileReachSyncStatus {
     fullName: string;
     role: string;
   } | null;
+}
+
+export interface SmsGroupMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderPhone?: string;
+  senderRole?: string;
+  senderAvatar?: string;
+  text?: string;
+  imageUrl?: string;
+  imageBase64?: string;
+  createdAt: string;
+  // AI Order Analysis
+  isAiAnalyzed?: boolean;
+  isSale?: boolean;
+  aiConfidence?: number;
+  extractedSaleId?: string;
+  extractedOrderNumber?: string;
+  extractedCustomerName?: string;
+  extractedIspProgram?: string;
+  extractedSpeedTier?: string;
+  extractedMonthlyPrice?: number;
+  extractedInstallDate?: string;
+  extractedAddress?: string;
+  // Fiber Volt reconciliation
+  fiberVoltStatus?: 'pending_fibervolt' | 'matched_installed' | 'matched_scheduled' | 'not_a_sale' | 'unmatched';
+  fiberVoltMatchId?: string;
+  fiberVoltMatchedAt?: string;
+  aiReasoning?: string;
 }

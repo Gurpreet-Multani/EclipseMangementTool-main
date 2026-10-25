@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord, CustomerSmsConfig, CustomerSmsMessage, MobileReachSyncStatus, MobileReachLeaderboardEntry } from '../types';
+import { BlitzBooking, BlitzEvent, BlitzJoinRequest, BlitzNotification, Course, CourseSubmission, InternalMessage, RepAvailabilitySlot, SaleOrder, CourseAssignmentRecord, CustomerSmsConfig, CustomerSmsMessage, MobileReachSyncStatus, MobileReachLeaderboardEntry, SmsGroupMessage } from '../types';
 import { INITIAL_AVAILABILITY, INITIAL_BLITZES, INITIAL_COURSES, INITIAL_JOIN_REQUESTS, INITIAL_MESSAGES, INITIAL_NOTIFICATIONS, INITIAL_SALES } from '../lib/seedData';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
@@ -85,6 +85,11 @@ interface DataContextType {
   mobileReachStatus: MobileReachSyncStatus | null;
   syncMobileReachNow: (email?: string, password?: string) => Promise<{ success: boolean; count: number; message: string }>;
   fetchMobileReachData: () => Promise<void>;
+  // SMS Groupchat Live Image Ingestion & Overtime Reconciliation
+  smsGroupMessages: SmsGroupMessage[];
+  sendSmsGroupMessage: (text: string, imageBase64?: string) => Promise<{ success: boolean; isSale?: boolean; sale?: SaleOrder | null; message: string }>;
+  fetchSmsGroupMessages: () => Promise<void>;
+  reconcileSmsGroupSales: () => Promise<{ reconciledCount: number }>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -237,8 +242,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!snapshot.empty) {
           const list: SaleOrder[] = [];
           snapshot.forEach((d) => list.push(d.data() as SaleOrder));
-          if (list.length > 0) {
-            setSales(list);
+          const map = new Map<string, SaleOrder>();
+          INITIAL_SALES.forEach((s) => map.set(s.id, s));
+          list.forEach((s) => map.set(s.id, s));
+          const mergedList = Array.from(map.values());
+          if (mergedList.length > 0) {
+            setSales(mergedList);
           }
         } else {
           INITIAL_SALES.forEach(async (sale) => {
@@ -459,12 +468,100 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshData = () => {
     fetchMobileReachData();
+    fetchSmsGroupMessages();
   };
 
   useEffect(() => {
     fetchMobileReachData();
-    const timer = setInterval(fetchMobileReachData, 2 * 60 * 1000);
+    const timer = setInterval(fetchMobileReachData, 60 * 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // SMS Groupchat Live Feed & AI Ingestion State
+  const [smsGroupMessages, setSmsGroupMessages] = useState<SmsGroupMessage[]>([]);
+
+  const fetchSmsGroupMessages = async () => {
+    try {
+      const res = await fetch('/api/sms-chat/messages');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.messages)) {
+          setSmsGroupMessages(json.messages);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch SMS chat messages:', e);
+    }
+  };
+
+  const sendSmsGroupMessage = async (text: string, imageBase64?: string) => {
+    if (!currentUser) throw new Error('Must be logged in to post in SMS Groupchat');
+    const res = await fetch('/api/sms-chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senderId: currentUser.id,
+        senderName: currentUser.displayName,
+        senderPhone: currentUser.phone,
+        senderRole: currentUser.role,
+        senderAvatar: currentUser.badgePhotoUrl || currentUser.idPhotoUrl,
+        text,
+        imageBase64,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to post message to group chat');
+    }
+
+    if (json.message) {
+      setSmsGroupMessages((prev) => [json.message, ...prev.filter((m) => m.id !== json.message.id)]);
+    }
+
+    if (json.uploadedSale) {
+      setSales((prev) => [json.uploadedSale, ...prev.filter((s) => s.id !== json.uploadedSale.id)]);
+
+      const notif: BlitzNotification = {
+        id: `notif_sms_${Date.now()}`,
+        title: '📱 SMS Groupchat Order Ingested!',
+        message: `Order #${json.uploadedSale.orderNumber} for ${json.uploadedSale.customerName} (${json.uploadedSale.ispProgram}) was detected by Vision AI and uploaded to All Sales Orders!`,
+        type: 'sale',
+        timestamp: new Date().toISOString(),
+        read: false,
+        linkTab: 'work',
+      };
+      setNotifications((prev) => [notif, ...prev]);
+    }
+
+    return {
+      success: true,
+      isSale: json.message?.isSale,
+      sale: json.uploadedSale || null,
+      message: json.message?.isSale
+        ? `Order #${json.uploadedSale?.orderNumber || ''} verified by AI and uploaded to All Sales Orders!`
+        : 'Message posted to SMS group chat.',
+    };
+  };
+
+  const reconcileSmsGroupSales = async () => {
+    try {
+      const res = await fetch('/api/sms-chat/reconcile', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        await fetchSmsGroupMessages();
+        await fetchMobileReachData();
+        return { reconciledCount: json.reconciledCount || 0 };
+      }
+    } catch (e) {
+      console.warn('Reconcile error:', e);
+    }
+    return { reconciledCount: 0 };
+  };
+
+  useEffect(() => {
+    fetchSmsGroupMessages();
+    const chatTimer = setInterval(fetchSmsGroupMessages, 30 * 1000);
+    return () => clearInterval(chatTimer);
   }, []);
 
   // Send Direct Message or Broadcast
@@ -1631,6 +1728,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         mobileReachStatus,
         syncMobileReachNow,
         fetchMobileReachData,
+        smsGroupMessages,
+        sendSmsGroupMessage,
+        fetchSmsGroupMessages,
+        reconcileSmsGroupSales,
       }}
     >
       {children}
