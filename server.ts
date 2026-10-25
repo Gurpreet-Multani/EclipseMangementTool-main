@@ -219,8 +219,8 @@ async function startServer() {
             `    shirtSize: ${JSON.stringify(user.shirtSize || 'L')},\n` +
             (user.badgePhotoUrl ? `    badgePhotoUrl: ${JSON.stringify(user.badgePhotoUrl)},\n` : '') +
             (user.idPhotoUrl ? `    idPhotoUrl: ${JSON.stringify(user.idPhotoUrl)},\n` : '') +
-            `    emergencyContact: ${JSON.stringify(user.emergencyContact || { name: 'Primary Contact', phone: '(555) 000-0000', relationship: 'Family' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
-            `    directDeposit: ${JSON.stringify(user.directDeposit || { bankName: 'Pending Setup', accountNumber: '••••••••0000', routingNumber: '000000000', accountType: 'checking', taxIdType: 'SSN', taxIdNumber: 'XXX-XX-0000' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    emergencyContact: ${JSON.stringify(user.emergencyContact || { name: '', phone: '', relationship: '' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
+            `    directDeposit: ${JSON.stringify(user.directDeposit || { bankName: '', accountNumber: '', routingNumber: '', accountType: 'checking', taxIdType: 'SSN', taxIdNumber: '' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
             `    fiberAgreement: ${JSON.stringify(user.fiberAgreement || { status: 'signed', version: 'v2026.2' }, null, 6).replace(/\\n/g, '\n    ')},\n` +
             `    travelProfile: ${JSON.stringify(user.travelProfile || { homeAirport: 'DFW - Dallas/Fort Worth', ableToTravel: true, smsTravelUpdatesConsent: true }, null, 6).replace(/\\n/g, '\n    ')},\n` +
             `    payRates: ${JSON.stringify(user.payRates || { 'Sparklight Fiber': 320, 'T-Mobile Fiber': 320, 'AT&T Fiber': 290, 'Frontier Fiber': 310, 'Quantum Fiber': 280, 'Brightspeed': 260, 'Spectrum Gig': 250, 'Kinetic Fiber': 270 }, null, 6).replace(/\\n/g, '\n    ')},\n` +

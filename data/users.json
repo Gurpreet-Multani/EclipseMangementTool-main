@@ -21,6 +21,19 @@
       "Optimum Fiber": 280,
       "Ziply Fiber": 290,
       "Cox Gigablast": 270
+    },
+    "emergencyContact": {
+      "name": "",
+      "phone": "",
+      "relationship": ""
+    },
+    "directDeposit": {
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
+      "accountType": "checking",
+      "taxIdType": "SSN",
+      "taxIdNumber": ""
     }
   },
   {
@@ -35,19 +48,19 @@
     "shirtSize": "L",
     "phone": "(555) 312-8899",
     "emergencyContact": {
-      "name": "Simran Multani",
-      "phone": "(555) 312-8890",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "idPhotoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
     "badgePhotoUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "JPMorgan Chase Bank, N.A.",
-      "accountNumber": "••••••••4812",
-      "routingNumber": "111000614",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "EIN",
-      "taxIdNumber": "XX-XXX9104"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -102,18 +115,18 @@
     "shirtSize": "XL",
     "phone": "(555) 782-4411",
     "emergencyContact": {
-      "name": "Angela Vance",
-      "phone": "(555) 782-4412",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Bank of America",
-      "accountNumber": "••••••••6290",
-      "routingNumber": "026009593",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-5582"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -166,18 +179,18 @@
     "shirtSize": "M",
     "phone": "(555) 438-9921",
     "emergencyContact": {
-      "name": "Robert Hayes",
-      "phone": "(555) 438-9920",
-      "relationship": "Father"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Wells Fargo Bank",
-      "accountNumber": "••••••••7731",
-      "routingNumber": "121000247",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-8419"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "coming_soon",
@@ -231,18 +244,18 @@
     "shirtSize": "S",
     "phone": "(555) 290-7711",
     "emergencyContact": {
-      "name": "Maria Rivera",
-      "phone": "(555) 290-7710",
-      "relationship": "Mother"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "PNC Bank",
-      "accountNumber": "••••••••1104",
-      "routingNumber": "043000096",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-3901"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -296,18 +309,18 @@
     "shirtSize": "L",
     "phone": "(555) 601-3829",
     "emergencyContact": {
-      "name": "Karen Chen",
-      "phone": "(555) 601-3820",
-      "relationship": "Sister"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Chase Bank",
-      "accountNumber": "••••••••9843",
-      "routingNumber": "111000614",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-1192"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "coming_soon",
@@ -360,19 +373,19 @@
     "shirtSize": "L",
     "phone": "(480) 612-4918",
     "emergencyContact": {
-      "name": "Elena Garza",
-      "phone": "(480) 612-4910",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "idPhotoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     "badgePhotoUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "JPMorgan Chase Bank, N.A.",
-      "accountNumber": "••••••••3821",
-      "routingNumber": "122105155",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-7814"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -432,19 +445,19 @@
     "shirtSize": "XL",
     "phone": "(573) 489-3281",
     "emergencyContact": {
-      "name": "Monique Williams",
-      "phone": "(573) 489-3280",
-      "relationship": "Mother"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "idPhotoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
     "badgePhotoUrl": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Regions Bank",
-      "accountNumber": "••••••••7402",
-      "routingNumber": "081000032",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-4923"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -504,18 +517,18 @@
     "shirtSize": "L",
     "phone": "(208) 555-0144",
     "emergencyContact": {
-      "name": "Sarah Asbury",
-      "phone": "(208) 555-0140",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Wells Fargo Bank",
-      "accountNumber": "••••••••5519",
-      "routingNumber": "121000247",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-3309"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -569,18 +582,18 @@
     "shirtSize": "XL",
     "phone": "(602) 555-7319",
     "emergencyContact": {
-      "name": "Victoria Stratton",
-      "phone": "(602) 555-7310",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "U.S. Bank",
-      "accountNumber": "••••••••9941",
-      "routingNumber": "102000021",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-9122"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -634,18 +647,18 @@
     "shirtSize": "L",
     "phone": "(602) 555-0182",
     "emergencyContact": {
-      "name": "Sarah Gutierrez",
-      "phone": "(602) 555-0180",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "JPMorgan Chase Bank, N.A.",
-      "accountNumber": "••••••••1194",
-      "routingNumber": "122105155",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-4412"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -705,18 +718,18 @@
     "shirtSize": "XL",
     "phone": "(480) 555-0294",
     "emergencyContact": {
-      "name": "Mariana Paiva",
-      "phone": "(480) 555-0290",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Bank of America",
-      "accountNumber": "••••••••4810",
-      "routingNumber": "122105155",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-9140"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -776,18 +789,18 @@
     "shirtSize": "M",
     "phone": "(480) 555-0551",
     "emergencyContact": {
-      "name": "Claire McCauley",
-      "phone": "(480) 555-0550",
-      "relationship": "Spouse"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
     "directDeposit": {
-      "bankName": "Wells Fargo Bank",
-      "accountNumber": "••••••••7721",
-      "routingNumber": "121000247",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-1123"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "signed",
@@ -846,18 +859,18 @@
     "shirtSize": "M",
     "phone": "(555) 914-7722",
     "emergencyContact": {
-      "name": "Sarah Morgan",
-      "phone": "(555) 914-7720",
-      "relationship": "Sibling"
+      "name": "",
+      "phone": "",
+      "relationship": ""
     },
     "badgePhotoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
     "directDeposit": {
-      "bankName": "Pending Setup",
-      "accountNumber": "••••••••0000",
-      "routingNumber": "000000000",
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
       "accountType": "checking",
       "taxIdType": "SSN",
-      "taxIdNumber": "XXX-XX-0000"
+      "taxIdNumber": ""
     },
     "fiberAgreement": {
       "status": "pending",
@@ -922,6 +935,19 @@
       "Optimum Fiber": 150,
       "Ziply Fiber": 160,
       "Cox Gigablast": 140
+    },
+    "emergencyContact": {
+      "name": "",
+      "phone": "",
+      "relationship": ""
+    },
+    "directDeposit": {
+      "bankName": "",
+      "accountNumber": "",
+      "routingNumber": "",
+      "accountType": "checking",
+      "taxIdType": "SSN",
+      "taxIdNumber": ""
     }
   }
 ]
