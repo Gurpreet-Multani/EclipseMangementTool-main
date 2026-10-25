@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
@@ -591,6 +590,7 @@ If a specific field is not found in the screenshot, return an empty string or nu
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
