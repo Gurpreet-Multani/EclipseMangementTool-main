@@ -1,4 +1,4 @@
-import { SaleOrder } from '../types';
+import type { SaleOrder } from '../types/index.ts';
 
 /**
  * Fiber Volt (MobileReach D2D Cloud) Verified Sales Orders

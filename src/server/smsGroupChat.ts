@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { SaleOrder, SmsGroupMessage } from '../types/index.ts';
+import type { SaleOrder, SmsGroupMessage } from '../types/index.ts';
 import { getServerFirestore } from './mobileReachSync.ts';
 
 const __filename = fileURLToPath(import.meta.url);

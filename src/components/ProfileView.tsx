@@ -129,7 +129,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
   // Emergency contact
   const [emerName, setEmerName] = useState(activeSubjectUser?.emergencyContact?.name || '');
   const [emerPhone, setEmerPhone] = useState(activeSubjectUser?.emergencyContact?.phone || '');
-  const [emerRel, setEmerRel] = useState(activeSubjectUser?.emergencyContact?.relationship || 'Family');
+  const [emerRel, setEmerRel] = useState(activeSubjectUser?.emergencyContact?.relationship || '');
 
   // Direct deposit state
   const [bankName, setBankName] = useState(activeSubjectUser?.directDeposit?.bankName || '');
@@ -215,10 +215,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
   const [savingPayRates, setSavingPayRates] = useState(false);
   const [payRateNotice, setPayRateNotice] = useState<string | null>(null);
 
-  // Synchronize pay rates whenever the active user changes
+  // Synchronize form fields whenever the active user changes
   useEffect(() => {
     if (activeSubjectUser) {
+      setFirstName(activeSubjectUser.firstName || '');
+      setLastName(activeSubjectUser.lastName || '');
+      setEmail(activeSubjectUser.email || '');
+      setPhone(activeSubjectUser.phone || '');
+      setDateOfBirth(activeSubjectUser.dateOfBirth || '');
+      setShirtSize(activeSubjectUser.shirtSize || 'L');
+      setManagerId(activeSubjectUser.managerId || '');
+      setRole((activeSubjectUser.role as UserRole) || 'Representative');
+      setTitle(activeSubjectUser.title || '');
       setPayRates(getNormalizedPayRates(activeSubjectUser.payRates));
+      setAbleToTravel(activeSubjectUser.travelProfile?.ableToTravel ?? true);
+      setHomeAirport(activeSubjectUser.travelProfile?.homeAirport || '');
+      setSmsConsent(activeSubjectUser.travelProfile?.smsTravelUpdatesConsent ?? true);
+      setEmerName(activeSubjectUser.emergencyContact?.name || '');
+      setEmerPhone(activeSubjectUser.emergencyContact?.phone || '');
+      setEmerRel(activeSubjectUser.emergencyContact?.relationship || '');
+      setBankName(activeSubjectUser.directDeposit?.bankName || '');
+      setAccountNum(activeSubjectUser.directDeposit?.accountNumber || '');
+      setRoutingNum(activeSubjectUser.directDeposit?.routingNumber || '');
+      setAccountType(activeSubjectUser.directDeposit?.accountType || 'checking');
+      setTaxIdType(activeSubjectUser.directDeposit?.taxIdType || 'SSN');
+      setTaxIdNumber(activeSubjectUser.directDeposit?.taxIdNumber || '');
+      setBadgePhoto(activeSubjectUser.badgePhotoUrl || '');
+      setIdPhoto(activeSubjectUser.idPhotoUrl || '');
     }
   }, [activeSubjectUser?.id]);
 
@@ -290,6 +313,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
       setAbleToTravel(u.travelProfile?.ableToTravel ?? true);
       setHomeAirport(u.travelProfile?.homeAirport || '');
       setSmsConsent(u.travelProfile?.smsTravelUpdatesConsent ?? true);
+      setEmerName(u.emergencyContact?.name || '');
+      setEmerPhone(u.emergencyContact?.phone || '');
+      setEmerRel(u.emergencyContact?.relationship || '');
       setBankName(u.directDeposit?.bankName || '');
       setAccountNum(u.directDeposit?.accountNumber || '');
       setRoutingNum(u.directDeposit?.routingNumber || '');
@@ -797,9 +823,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
 
         {/* SECTION 3: EMERGENCY CONTACT */}
         <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Phone className="w-5 h-5 text-rose-400" />
-            <h3 className="text-base font-bold text-white">Emergency Contact</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-rose-400" />
+              <h3 className="text-base font-bold text-white">Emergency Contact</h3>
+            </div>
+            {(!emerName && !emerPhone && !emerRel) && (
+              <span className="text-[11px] font-medium text-slate-400 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+                No emergency contact on file
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -809,8 +842,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 type="text"
                 value={emerName}
                 onChange={(e) => setEmerName(e.target.value)}
-                placeholder="Full Name"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                placeholder="Not provided yet"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
 
@@ -820,8 +853,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 type="tel"
                 value={emerPhone}
                 onChange={(e) => setEmerPhone(e.target.value)}
-                placeholder="(555) 000-0000"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                placeholder="Not provided yet"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
 
@@ -831,8 +864,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 type="text"
                 value={emerRel}
                 onChange={(e) => setEmerRel(e.target.value)}
-                placeholder="Spouse / Parent / Sibling"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                placeholder="Not provided yet (e.g. Spouse, Parent)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
           </div>
@@ -841,19 +874,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
         {/* SECTION 4: DIRECT DEPOSIT & BANKING */}
         {isPanelVisible('direct_deposit') && (
           <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-emerald-400" />
               <h3 className="text-base font-bold text-white">Direct Deposit & Banking Details</h3>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowMaskedBank(!showMaskedBank)}
-              className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold"
-            >
-              {showMaskedBank ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              <span>{showMaskedBank ? 'Mask Sensitive Numbers' : 'Reveal Banking Numbers'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {(!bankName && !accountNum && !routingNum && !taxIdNumber) && (
+                <span className="text-[11px] font-medium text-slate-400 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
+                  No bank account added yet
+                </span>
+              )}
+              {Boolean(accountNum || routingNum || taxIdNumber) && (
+                <button
+                  type="button"
+                  onClick={() => setShowMaskedBank(!showMaskedBank)}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold"
+                >
+                  {showMaskedBank ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showMaskedBank ? 'Mask Sensitive Numbers' : 'Reveal Banking Numbers'}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -863,8 +905,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 type="text"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g. JPMorgan Chase Bank, N.A."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                placeholder="No bank account added yet"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
 
@@ -886,8 +928,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 type="text"
                 value={routingNum}
                 onChange={(e) => setRoutingNum(e.target.value)}
-                placeholder="026009593"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                placeholder="9-digit routing number"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
 
@@ -898,7 +940,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 value={accountNum}
                 onChange={(e) => setAccountNum(e.target.value)}
                 placeholder="Account number"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
 
@@ -923,7 +965,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenBadgeModal, onOp
                 value={taxIdNumber}
                 onChange={(e) => setTaxIdNumber(e.target.value)}
                 placeholder={taxIdType === 'SSN' ? 'XXX-XX-XXXX' : 'XX-XXXXXXX'}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
               />
             </div>
           </div>
